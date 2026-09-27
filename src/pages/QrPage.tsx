@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, Loader2, Printer } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery } from "convex/react";
 import QRCode from "qrcode";
@@ -27,7 +27,7 @@ export default function QrPage() {
     api.restaurants.getRestaurant,
     menu?.restaurantId ? { id: menu.restaurantId } : "skip",
   );
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [qrDataUrl, setQrDataUrl] = useState("");
   const [colorIdx, setColorIdx] = useState(0);
 
   const publicUrl = useMemo(() => {
@@ -36,14 +36,24 @@ export default function QrPage() {
   }, [restaurant]);
 
   useEffect(() => {
-    if (!publicUrl || !canvasRef.current) return;
+    if (!publicUrl) return;
+    let cancelled = false;
     const { fg, bg } = QR_COLORS[colorIdx];
-    QRCode.toCanvas(canvasRef.current, publicUrl, {
+    // Image (data URL) plutôt que canvas : rendu toujours carré, à l'écran
+    // comme à l'impression, quelles que soient les contraintes CSS du conteneur.
+    QRCode.toDataURL(publicUrl, {
       width: 520,
       margin: 2,
       errorCorrectionLevel: "M",
       color: { dark: fg, light: bg },
-    }).catch(() => undefined);
+    })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [publicUrl, colorIdx]);
 
   if (menu === undefined || restaurant === undefined) {
@@ -98,7 +108,11 @@ export default function QrPage() {
             <h2 className="mt-1 mb-5 font-[Baloo_2] text-2xl font-extrabold text-neutral-800">
               {menu.name}
             </h2>
-            <canvas ref={canvasRef} className="max-w-full rounded-2xl" />
+            <img
+              src={qrDataUrl}
+              alt={`QR code du menu ${menu.name}`}
+              className="aspect-square w-64 max-w-full rounded-2xl"
+            />
             <p className="mt-5 text-sm font-semibold text-neutral-700">
               Scannez pour découvrir la carte
             </p>
