@@ -96,7 +96,14 @@ export const myRole = query({
 export const listRestaurateurs = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    // Sûr : une query ne doit jamais throw vers le client pour un non-admin
+    // (la page /admin la souscrit avant de connaître le rôle). On renvoie []
+    // et l'UI affiche l'écran de configuration d'accès.
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+    const user = await ctx.db.get(userId);
+    if (user?.role !== "admin") return [];
+
     const restaurants = await ctx.db.query("restaurants").collect();
     const subs = await ctx.db.query("subscriptions").collect();
     const byUser = new Map(subs.map((s) => [s.userId, s]));

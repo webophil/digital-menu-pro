@@ -250,7 +250,12 @@ function AdminSetup({ isAdmin }: { isAdmin: boolean }) {
 export default function Admin() {
   const navigate = useNavigate();
   const role = useQuery(api.admin.myRole);
-  const restaurateurs = useQuery(api.admin.listRestaurateurs);
+  // On ne souscrit la liste que si l'utilisateur est bien admin : sinon la
+  // requête tournerait pour tout visiteur et lèverait une erreur côté serveur.
+  const restaurateurs = useQuery(
+    api.admin.listRestaurateurs,
+    role === "admin" ? {} : "skip",
+  );
   const revoke = useMutation(api.admin.revokeToFree);
   const [search, setSearch] = useState("");
   const [grantTarget, setGrantTarget] = useState<Restaurateur | null>(null);
