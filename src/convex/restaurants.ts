@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { PLANS } from "./plans";
+import { PLANS, isProSubscription } from "./plans";
 
 const SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 const SLUG_LENGTH = 6;
@@ -257,7 +257,13 @@ export const createMenu = mutation({
       .query("menus")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurantId))
       .collect();
-    if (menus.length >= PLANS.FREE.maxMenus) {
+    // La limite de menus ne s'applique qu'au plan Gratuit (PRO = illimité,
+    // y compris PRO octroyé par l'admin ; un PRO expiré retombe en Gratuit).
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (!isProSubscription(sub) && menus.length >= PLANS.FREE.maxMenus) {
       throw new Error(
         `Le plan Gratuit est limité à ${PLANS.FREE.maxMenus} menu. Passez au plan Pro pour créer des menus illimités.`,
       );

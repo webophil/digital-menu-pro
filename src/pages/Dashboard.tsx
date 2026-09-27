@@ -27,7 +27,7 @@ import {
 import { DashboardShell } from "@/components/DashboardShell";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
-import { PLANS } from "@/convex/plans";
+import { isProSubscription, PLANS } from "@/convex/plans";
 import { establishmentTypeLabel, menuTypeLabel } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { api as apiRoot } from "@/convex/_generated/api";
@@ -253,6 +253,8 @@ export default function Dashboard() {
   );
   const visibleMenus = menus ?? [];
   const seed = useMutation(api.restaurants.seedDemoMenu);
+  const sub = useQuery(api.billing.getMySubscription);
+  const pro = isProSubscription(sub);
 
   useEffect(() => {
     if (!isLoading && restaurants !== undefined && restaurants.length === 0) {
@@ -275,8 +277,6 @@ export default function Dashboard() {
       </DashboardShell>
     );
   }
-
-  const pro = false; // affiché dynamiquement dans le shell ; quotas gérés côté serveur
 
   return (
     <DashboardShell
@@ -368,7 +368,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ))}
-          {visibleMenus.length >= PLANS.FREE.maxMenus && (
+          {!pro && visibleMenus.length >= PLANS.FREE.maxMenus && (
             <Card className="clay-butter clay-flat flex items-center justify-center rounded-3xl border-0 p-6">
               <div className="text-center">
                 <Crown className="mx-auto mb-2 size-6 text-[oklch(0.5_0.1_70)]" />
