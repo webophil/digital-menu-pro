@@ -32,12 +32,95 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // add other tables here
+    // ---- MenuMaker ----
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // Établissement d'un restaurateur (v1 : 1 restaurant par compte)
+    restaurants: defineTable({
+      ownerId: v.id("users"),
+      name: v.string(),
+      slug: v.string(),
+      establishmentType: v.string(), // "restaurant" | "brasserie" | "foodtruck" | ...
+      city: v.optional(v.string()),
+      phone: v.optional(v.string()),
+      tagline: v.optional(v.string()),
+      currency: v.string(), // ex "€"
+      // Traductions de la vitrine (auto, via AI, plan Pro)
+      nameEn: v.optional(v.string()),
+      nameEs: v.optional(v.string()),
+      nameDe: v.optional(v.string()),
+      taglineEn: v.optional(v.string()),
+      taglineEs: v.optional(v.string()),
+      taglineDe: v.optional(v.string()),
+    })
+      .index("by_owner", ["ownerId"])
+      .index("by_slug", ["slug"]),
+
+    // Un menu (Carte, Menu du jour, Ardoise…)
+    menus: defineTable({
+      restaurantId: v.id("restaurants"),
+      name: v.string(),
+      menuType: v.string(), // "carte" | "menu-du-jour" | "soir" | "enfants" | "boissons" | "autre"
+      position: v.number(),
+      archived: v.optional(v.boolean()),
+    }).index("by_restaurant", ["restaurantId"]),
+
+    // Catégorie dans un menu (Entrées, Plats, Desserts…)
+    categories: defineTable({
+      menuId: v.id("menus"),
+      restaurantId: v.id("restaurants"),
+      name: v.string(),
+      emoji: v.optional(v.string()),
+      position: v.number(),
+    }).index("by_menu", ["menuId"]),
+
+    // Un plat
+    dishes: defineTable({
+      restaurantId: v.id("restaurants"),
+      categoryId: v.id("categories"),
+      name: v.string(),
+      description: v.optional(v.string()),
+      price: v.number(), // en euros
+      imageUrl: v.optional(v.string()),
+      allergens: v.array(v.string()), // codes des 14 allergènes FR
+      published: v.optional(v.boolean()),
+      position: v.number(),
+      // Traductions automatiques (plan Pro)
+      nameEn: v.optional(v.string()),
+      nameEs: v.optional(v.string()),
+      nameDe: v.optional(v.string()),
+      descriptionEn: v.optional(v.string()),
+      descriptionEs: v.optional(v.string()),
+      descriptionDe: v.optional(v.string()),
+    })
+      .index("by_category", ["categoryId"])
+      .index("by_restaurant", ["restaurantId"]),
+
+    // État d'abonnement du restaurateur
+    subscriptions: defineTable({
+      userId: v.id("users"),
+      plan: v.string(), // "free" | "pro"
+      status: v.optional(v.string()), // active | on_trial | past_due | cancelled
+      provider: v.optional(v.string()), // "lemonsqueezy"
+      externalCustomerId: v.optional(v.string()),
+      externalSubscriptionId: v.optional(v.string()),
+      currentPeriodEnd: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_external_subscription", ["externalSubscriptionId"]),
+
+    // Factures d'abonnement
+    invoices: defineTable({
+      userId: v.id("users"),
+      number: v.string(),
+      amountEurCents: v.number(),
+      plan: v.string(),
+      status: v.string(), // "paid" | "refunded" | "open"
+      issuedAt: v.number(),
+      periodStart: v.optional(v.number()),
+      periodEnd: v.optional(v.number()),
+      description: v.string(),
+    }).index("by_user", ["userId"]),
   },
   {
     schemaValidation: false,
