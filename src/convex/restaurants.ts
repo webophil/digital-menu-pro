@@ -567,55 +567,6 @@ export const seedDemoMenu = mutation({
   },
 });
 
-// ---------- Admin ----------
-
-export const adminListRestaurants = query({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) return null;
-    const user = await ctx.db.get(userId);
-    if (user?.role !== "admin") return null;
-    const all = await ctx.db.query("restaurants").collect();
-    const subs = await ctx.db.query("subscriptions").collect();
-    const byUser = new Map(subs.map((s) => [s.userId, s]));
-    return all
-      .map((r) => ({
-        ...r,
-        plan: byUser.get(r.ownerId)?.plan ?? "free",
-      }))
-      .sort((a, b) => b._creationTime - a._creationTime);
-  },
-});
-
-export const adminSetPlan = mutation({
-  args: { userId: v.id("users"), plan: v.string() },
-  handler: async (ctx, { userId, plan }) => {
-    const adminId = await getAuthUserId(ctx);
-    if (adminId === null) throw new Error("Not authenticated");
-    const admin = await ctx.db.get(adminId);
-    if (admin?.role !== "admin") throw new Error("Forbidden");
-    const sub = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-    if (sub) {
-      await ctx.db.patch(sub._id, {
-        plan,
-        status: "active",
-        updatedAt: Date.now(),
-      });
-    } else {
-      await ctx.db.insert("subscriptions", {
-        userId,
-        plan,
-        status: "active",
-        updatedAt: Date.now(),
-      });
-    }
-  },
-});
-
 // ---------- Internes (webhook paiement) ----------
 
 export const internalSetPlan = internalMutation({

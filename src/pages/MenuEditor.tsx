@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DashboardShell } from "@/components/DashboardShell";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { isProPlan } from "@/convex/plans";
+import { isProSubscription } from "@/convex/plans";
 import { ALLERGENS, MENU_TYPES, menuTypeLabel, formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
@@ -242,7 +242,7 @@ export default function MenuEditor() {
   const [newCatName, setNewCatName] = useState("");
   const [translating, setTranslating] = useState(false);
 
-  const pro = isProPlan(sub?.plan);
+  const pro = isProSubscription(sub);
 
   const dishesByCat = useMemo(() => {
     const map = new Map<string, NonNullable<typeof dishes>>();

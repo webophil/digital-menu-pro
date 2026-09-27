@@ -42,3 +42,20 @@ export const PRO_TRANSLATION_LANGS = ["en", "es", "de"] as const;
 export function isProPlan(plan: string | undefined | null) {
   return plan === "pro";
 }
+
+/** Doc d'abonnement minimal requis par le helper d'expiration. */
+export type SubscriptionLike = {
+  plan?: string | null;
+  currentPeriodEnd?: number | null;
+} | null | undefined;
+
+/**
+ * Le plan est-il effectivement PRO ?
+ * Un PRO avec une date d'expiration passée retombe en Gratuit.
+ */
+export function isProSubscription(sub: SubscriptionLike, now: number = Date.now()) {
+  if (!isProPlan(sub?.plan)) return false;
+  const end = sub?.currentPeriodEnd;
+  if (end !== undefined && end !== null && end <= now) return false;
+  return true;
+}

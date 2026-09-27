@@ -2,6 +2,7 @@ import { internalQuery, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { isProSubscription } from "./plans";
 
 /** Charge les textes à traduire et vérifie le plan Pro (server-side). */
 export const loadTranslateJob = internalQuery({
@@ -21,7 +22,7 @@ export const loadTranslateJob = internalQuery({
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
-    if (!sub || sub.plan !== "pro") {
+    if (!isProSubscription(sub)) {
       throw new Error(
         "La traduction automatique est réservée au plan Pro. Passez au plan Pro pour l'activer.",
       );
@@ -61,7 +62,7 @@ export const loadAllTranslateJobs = internalQuery({
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
-    if (!sub || sub.plan !== "pro") {
+    if (!isProSubscription(sub)) {
       throw new Error(
         "La traduction automatique est réservée au plan Pro. Passez au plan Pro pour l'activer.",
       );

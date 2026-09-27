@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { DashboardShell } from "@/components/DashboardShell";
 import { api } from "@/convex/_generated/api";
-import { isProPlan, PLANS, PRO_PRICE_EUR } from "@/convex/plans";
+import { isProPlan, isProSubscription, PLANS, PRO_PRICE_EUR } from "@/convex/plans";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Check,
@@ -42,7 +42,8 @@ export default function Subscription() {
   const [busy, setBusy] = useState(false);
 
   const checkoutStatus = searchParams.get("checkout");
-  const pro = isProPlan(sub?.plan);
+  const pro = isProSubscription(sub);
+  const proExpired = !pro && isProPlan(sub?.plan);
 
   const startCheckout = async () => {
     if (!user?.email) {
@@ -109,9 +110,13 @@ export default function Subscription() {
               <CardDescription>
                 {pro
                   ? sub?.currentPeriodEnd
-                    ? `Renouvellement le ${formatDate(sub.currentPeriodEnd)}`
-                    : "Abonnement Pro actif"
-                  : "Vous êtes sur le plan gratuit — 1 menu, sans traduction automatique."}
+                    ? `${sub.source === "admin" ? "Statut offert" : "Renouvellement"} jusqu'au ${formatDate(sub.currentPeriodEnd)}`
+                    : sub?.source === "admin"
+                      ? "Statut PRO accordé par l'administration, sans limite de durée."
+                      : "Abonnement Pro actif, sans limite de durée."
+                  : proExpired
+                    ? `Votre période Pro a expiré${sub?.currentPeriodEnd ? ` le ${formatDate(sub.currentPeriodEnd)}` : ""} — renouvelez pour retrouver menus illimités et traduction.`
+                    : "Vous êtes sur le plan gratuit — 1 menu, sans traduction automatique."}
               </CardDescription>
             </div>
           </div>
@@ -169,7 +174,14 @@ export default function Subscription() {
                 </li>
               ))}
             </ul>
-            {pro ? (
+            {pro && sub?.source === "admin" ? (
+              <Button
+                disabled
+                className="h-11 rounded-2xl border-0 bg-white/40 font-bold text-white"
+              >
+                <Crown className="mr-1 size-4" /> Statut actif (offert)
+              </Button>
+            ) : pro ? (
               <Button
                 disabled
                 className="h-11 rounded-2xl border-0 bg-white/40 font-bold text-white"

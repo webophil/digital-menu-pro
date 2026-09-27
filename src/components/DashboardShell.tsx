@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { isProPlan, PLANS } from "@/convex/plans";
-import { Crown, LogOut, UtensilsCrossed } from "lucide-react";
+import { isProSubscription, PLANS } from "@/convex/plans";
+import { Crown, LogOut, ShieldCheck, UtensilsCrossed } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "@/convex/_generated/api";
@@ -22,7 +22,8 @@ export function DashboardShell({
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const sub = useQuery(api.billing.getMySubscription);
-  const pro = isProPlan(sub?.plan);
+  const role = useQuery(api.admin.myRole);
+  const pro = isProSubscription(sub);
 
   const handleSignOut = async () => {
     await signOut();
@@ -61,6 +62,18 @@ export function DashboardShell({
               <Button asChild size="sm" className="clay-btn clay-teal hidden rounded-2xl font-bold text-white sm:inline-flex">
                 <Link to="/subscription">
                   <Crown className="size-4" /> Passer Pro
+                </Link>
+              </Button>
+            )}
+            {role === "admin" && (
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="clay-sm hidden rounded-2xl border-0 bg-card font-bold sm:inline-flex"
+              >
+                <Link to="/admin">
+                  <ShieldCheck className="size-4" /> Admin
                 </Link>
               </Button>
             )}

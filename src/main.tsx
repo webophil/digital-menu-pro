@@ -15,6 +15,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const MenuEditor = lazy(() => import("./pages/MenuEditor.tsx"));
 const QrPage = lazy(() => import("./pages/QrPage.tsx"));
 const Subscription = lazy(() => import("./pages/Subscription.tsx"));
+const Admin = lazy(() => import("./pages/Admin.tsx"));
 const PublicMenu = lazy(() => import("./pages/PublicMenu.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
@@ -156,6 +157,14 @@ createRoot(document.getElementById("root")!).render(
                 element={
                   <RequireAuth>
                     <Subscription />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <RequireAuth>
+                    <Admin />
                   </RequireAuth>
                 }
               />

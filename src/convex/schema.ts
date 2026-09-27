@@ -100,10 +100,12 @@ const schema = defineSchema(
       userId: v.id("users"),
       plan: v.string(), // "free" | "pro"
       status: v.optional(v.string()), // active | on_trial | past_due | cancelled
-      provider: v.optional(v.string()), // "lemonsqueezy"
+      provider: v.optional(v.string()), // "lemonsqueezy" | "admin"
+      source: v.optional(v.string()), // "checkout" | "admin"
+      grantedByUserId: v.optional(v.id("users")), // si octroyé par un admin
       externalCustomerId: v.optional(v.string()),
       externalSubscriptionId: v.optional(v.string()),
-      currentPeriodEnd: v.optional(v.number()),
+      currentPeriodEnd: v.optional(v.number()), // absent = illimité
       updatedAt: v.number(),
     })
       .index("by_user", ["userId"])
