@@ -98,13 +98,13 @@ function Hero() {
         <h1 className="font-[Baloo_2] text-4xl leading-tight font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
           Vos menus digitaux,{" "}
           <span className="bg-gradient-to-r from-[oklch(0.66_0.13_210)] to-[oklch(0.72_0.14_190)] bg-clip-text text-transparent">
-            appétissants & traduits
+            à jour dans toutes les langues
           </span>
         </h1>
         <p className="max-w-xl text-lg text-muted-foreground">
-          Photos qui donnent faim, les 14 allergènes réglementaires, traduction
+          Vos photos, vos descriptifs, les 14 allergènes réglementaires, traduction
           automatique en anglais, espagnol et allemand, et un QR code imprimable
-          pour vos clients. Pensé pour les restaurants, brasseries et food trucks.
+          pour vos tables. Pensé pour les restaurants, brasseries et bistros qui aiment la simplicité.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button
