@@ -136,17 +136,17 @@ function Hero() {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.7, delay: 0.15 }}
-        className="relative mx-auto w-full max-w-lg"
+        className="relative mx-auto w-full max-w-xl"
       >
         <div className={`relative flex items-center justify-center ${scanImgOk ? "flex-col gap-5 sm:flex-row sm:gap-0" : ""}`}>
-          {/* Photo 1 : tente QR posée sur la table du restaurant */}
+          {/* Photo 1 : tente QR posée sur la table du restaurant (grandit et monte) */}
           {scanImgOk && (
             <motion.div
               initial={{ opacity: 0, x: -24, rotate: -7 }}
               animate={{ opacity: 1, x: 0, rotate: -3.5 }}
               transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ rotate: -1.5, scale: 1.02 }}
-              className="clay relative z-10 w-48 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-56"
+              className="clay relative z-10 w-52 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-64 sm:-translate-y-5"
             >
               <img
                 src={SCAN_IMG_SRCS[scanImgIdx]}
@@ -180,7 +180,7 @@ function Hero() {
               animate={{ opacity: 1, x: 0, rotate: 3 }}
               transition={{ duration: 0.6, delay: 0.35 }}
               whileHover={{ rotate: 1.5, scale: 1.02 }}
-              className="clay relative z-10 -ml-6 w-44 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-52"
+              className="clay relative z-10 -ml-8 w-48 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-60 sm:translate-y-6"
             >
               <img
                 src="/mobile-menu.webp"
