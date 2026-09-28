@@ -266,7 +266,7 @@ function Hero() {
         <motion.div
           animate={{ y: [0, 10, 0] }}
           transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 0.6 }}
-          className={`clay absolute flex items-center gap-2 rounded-3xl bg-card px-4 py-2.5 ${scanImgOk ? "-bottom-5 right-1" : "-bottom-4 -left-4"}`}
+          className={`clay absolute z-30 flex items-center gap-2 rounded-3xl bg-card px-4 py-2.5 ${scanImgOk ? "-bottom-6 right-0" : "-bottom-4 -left-4"}`}
         >
           <Languages className="size-4 text-primary" />
           <span className="text-sm font-bold">Auto-traduit</span>
