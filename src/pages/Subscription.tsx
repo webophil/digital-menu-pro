@@ -273,7 +273,7 @@ export default function Subscription() {
         <Card className="clay-card clay-flat rounded-[2rem] border-0">
           <CardContent className="flex h-full flex-col gap-4 p-7">
             <div>
-              <h3 className="text-lg font-bold">Gratuit</h3>
+              <h3 className="font-[Baloo_2] text-3xl font-extrabold text-clay-deep">Gratuit</h3>
               <p className="font-[Baloo_2] text-4xl font-extrabold">
                 0 €<span className="text-sm font-bold text-muted-foreground"> /mois</span>
               </p>
@@ -306,7 +306,7 @@ export default function Subscription() {
           </Badge>
           <CardContent className="flex h-full flex-col gap-4 p-7">
             <div>
-              <h3 className="text-lg font-bold text-white">Pro</h3>
+              <h3 className="font-[Baloo_2] text-3xl font-extrabold text-[oklch(0.16_0.05_230)]">Pro</h3>
               <p className="font-[Baloo_2] text-4xl font-extrabold text-white">
                 {pro ? (
                   <span className="text-2xl">Abonnement actif</span>

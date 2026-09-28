@@ -441,7 +441,7 @@ function Pricing() {
         <Card className="clay-card clay-ring clay-flat rounded-[2rem] border-0">
           <CardContent className="flex h-full flex-col gap-5 p-8">
             <div>
-              <h3 className="text-xl font-bold">Gratuit</h3>
+              <h3 className="font-[Baloo_2] text-3xl font-extrabold text-clay-deep">Gratuit</h3>
               <p className="text-sm text-muted-foreground">Pour tester et petit menu</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold">
@@ -475,8 +475,8 @@ function Pricing() {
           </Badge>
           <CardContent className="flex h-full flex-col gap-5 p-8">
             <div>
-              <h3 className="text-xl font-bold text-white">Pro</h3>
-              <p className="text-sm text-white/85">Pour grandir sans limite</p>
+              <h3 className="font-[Baloo_2] text-3xl font-extrabold text-[oklch(0.16_0.05_230)]">Pro</h3>
+              <p className="text-sm font-semibold text-white/85">Pour grandir sans limite</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
               {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
