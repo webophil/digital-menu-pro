@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Languages,
   QrCode,
+  ScanLine,
   Smartphone,
   Sparkles,
   UtensilsCrossed,
@@ -68,8 +69,14 @@ function Nav() {
   );
 }
 
+// Visuel « scan à table » (photo déposée dans public/images/). Si le fichier
+// est absent, la page retombe élégamment sur la composition d'origine.
+const SCAN_IMG_SRCS = ["/images/hero-scanner.jpg", "/images/hero-scanner.png"];
+
 function Hero() {
   const navigate = useNavigate();
+  const [scanImgIdx, setScanImgIdx] = useState(0);
+  const scanImgOk = scanImgIdx < SCAN_IMG_SRCS.length;
   return (
     <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pt-14 pb-20 lg:grid-cols-2 lg:pt-20">
       <motion.div
@@ -124,14 +131,56 @@ function Hero() {
         </div>
       </motion.div>
 
-      {/* Démo menu mobile */}
+      {/* Scan → menu : la tente QR sur la table et le menu client, côte à côte */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.7, delay: 0.15 }}
-        className="relative mx-auto w-full max-w-sm"
+        className="relative mx-auto w-full max-w-md"
       >
-        <div className="clay rounded-[2.5rem] bg-card p-4">
+        <div className={`relative flex items-center justify-center ${scanImgOk ? "flex-col gap-5 sm:flex-row sm:gap-0" : ""}`}>
+          {/* Photo : tente QR posée sur la table du restaurant */}
+          {scanImgOk && (
+            <motion.div
+              initial={{ opacity: 0, x: -24, rotate: -6 }}
+              animate={{ opacity: 1, x: 0, rotate: -3 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              whileHover={{ rotate: -1.5, scale: 1.02 }}
+              className="clay relative z-10 w-44 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-48"
+            >
+              <img
+                src={SCAN_IMG_SRCS[scanImgIdx]}
+                alt="Tente de table avec QR code à scanner"
+                onError={() => setScanImgIdx((i) => i + 1)}
+                className="aspect-[4/4.4] w-full rounded-[1.25rem] object-cover"
+              />
+              <span className="clay-btn clay-teal absolute -top-3 -left-2 rounded-full px-3 py-1 text-[11px] font-extrabold text-white">
+                1 · On scanne
+              </span>
+            </motion.div>
+          )}
+
+          {/* Pulsation « scan » au niveau de la jonction photo → téléphone */}
+          {scanImgOk && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <motion.div
+                animate={{ scale: [1, 1.14, 1] }}
+                transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+                className="clay-btn flex size-12 items-center justify-center rounded-full bg-card"
+              >
+                <ScanLine className="size-5 text-primary" />
+              </motion.div>
+            </div>
+          )}
+
+          {/* Démo menu mobile */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.35 }}
+            className="relative"
+          >
+        <div className={`clay rounded-[2.5rem] bg-card p-4 ${scanImgOk ? "mx-auto w-full max-w-[250px] sm:-ml-5" : ""}`}>
           <div className="overflow-hidden rounded-[2rem] bg-background">
             <div className="clay-teal flex items-center justify-between px-5 pt-5 pb-8">
               <div>
@@ -183,17 +232,27 @@ function Hero() {
             </div>
           </div>
         </div>
-        <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-          className="clay absolute -top-5 -right-5 flex size-16 items-center justify-center rounded-3xl bg-card"
-        >
-          <QrCode className="size-8 text-primary" />
-        </motion.div>
+            {scanImgOk && (
+              <span className="clay-btn absolute -top-3 -right-2 z-20 rounded-full bg-white px-3 py-1 text-[11px] font-extrabold text-clay-deep">
+                2 · Menu affiché
+              </span>
+            )}
+          </motion.div>
+        </div>
+
+        {!scanImgOk && (
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+            className="clay absolute -top-5 -right-5 flex size-16 items-center justify-center rounded-3xl bg-card"
+          >
+            <QrCode className="size-8 text-primary" />
+          </motion.div>
+        )}
         <motion.div
           animate={{ y: [0, 10, 0] }}
           transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 0.6 }}
-          className="clay absolute -bottom-4 -left-4 flex items-center gap-2 rounded-3xl bg-card px-4 py-2.5"
+          className={`clay absolute flex items-center gap-2 rounded-3xl bg-card px-4 py-2.5 ${scanImgOk ? "-bottom-5 right-1" : "-bottom-4 -left-4"}`}
         >
           <Languages className="size-4 text-primary" />
           <span className="text-sm font-bold">Auto-traduit</span>
