@@ -34,7 +34,7 @@ function Logo() {
         <UtensilsCrossed className="size-5 text-white" />
       </div>
       <span className="text-xl font-bold tracking-tight text-clay-deep">
-        Menu<span className="text-primary">Maker</span>
+        V'la le&nbsp;<span className="text-primary">Menu&nbsp;!</span>
       </span>
     </div>
   );
@@ -371,7 +371,7 @@ function AllergenStrip() {
             </h3>
             <p className="mt-3 text-muted-foreground">
               En France, l'affichage des allergènes est une obligation légale.
-              MenuMaker couvre les 14 allergènes du règlement INCO et les rend
+              V'la le Menu ! couvre les 14 allergènes du règlement INCO et les rend
               lisibles en un coup d'œil sur le menu de vos clients — en 4 langues.
             </p>
           </div>
@@ -539,7 +539,7 @@ function Faq() {
     },
     {
       q: "L'affichage des allergènes est-il conforme ?",
-      a: "Oui, MenuMaker couvre les 14 allergènes à déclaration obligatoire en France (règlement UE INCO 1169/2011). Vous les cochez une fois par plat, ils s'affichent clairement pour vos clients.",
+      a: "Oui, V'la le Menu ! couvre les 14 allergènes à déclaration obligatoire en France (règlement UE INCO 1169/2011). Vous les cochez une fois par plat, ils s'affichent clairement pour vos clients.",
     },
     {
       q: "Puis-je mettre à jour mon menu à tout moment ?",
@@ -597,7 +597,7 @@ function CtaBanner() {
           className="relative mt-8 h-12 rounded-2xl border-0 bg-white px-8 text-base font-bold text-clay-deep hover:bg-white/90"
           onClick={() => navigate("/auth")}
         >
-          Essayer MenuMaker gratuitement
+          Essayer V'la le Menu ! gratuitement
           <ArrowRight className="size-5" />
         </Button>
       </div>
@@ -610,7 +610,7 @@ function Footer() {
     <footer className="border-t border-border/60 py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 text-sm text-muted-foreground sm:flex-row">
         <Logo />
-        <p>© {new Date().getFullYear()} MenuMaker — Menus digitaux pour restaurateurs.</p>
+        <p>© {new Date().getFullYear()} V'la le Menu ! — Menus digitaux pour restaurateurs.</p>
         <div className="flex gap-4 font-semibold">
           <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>

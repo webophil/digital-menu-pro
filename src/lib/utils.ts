@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// ---- Constantes métier MenuMaker (allergènes, types, langues) ----
+// ---- Constantes métier V'la le Menu ! (allergènes, types, langues) ----
 
 export const ALLERGENS = [
   { code: "gluten", labelFr: "Gluten", labelEn: "Gluten", labelEs: "Gluten", labelDe: "Gluten", emoji: "🌾" },

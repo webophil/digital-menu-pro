@@ -97,7 +97,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               <UtensilsCrossed className="size-5 text-white" />
             </div>
             <span className="text-xl font-bold text-clay-deep">
-              Menu<span className="text-primary">Maker</span>
+              V'la le&nbsp;<span className="text-primary">Menu&nbsp;!</span>
             </span>
           </Link>
 

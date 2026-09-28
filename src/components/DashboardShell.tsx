@@ -39,7 +39,7 @@ export function DashboardShell({
               <UtensilsCrossed className="size-4 text-white" />
             </div>
             <span className="font-bold text-clay-deep">
-              Menu<span className="text-primary">Maker</span>
+              V'la le&nbsp;<span className="text-primary">Menu&nbsp;!</span>
             </span>
           </Link>
           <div className="flex items-center gap-2">

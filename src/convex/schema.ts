@@ -32,7 +32,7 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // ---- MenuMaker ----
+    // ---- V'la le Menu ! (SaaS menus digitaux) ----
 
     // Établissement d'un restaurateur (v1 : 1 restaurant par compte)
     restaurants: defineTable({

@@ -59,7 +59,7 @@ export default function PublicMenu() {
 
   useEffect(() => {
     if (restaurant) {
-      document.title = `${restaurant.name} — Menu digital | MenuMaker`;
+      document.title = `${restaurant.name} — Menu digital | V'la le Menu !`;
     }
   }, [restaurant]);
 
@@ -290,7 +290,7 @@ export default function PublicMenu() {
           </p>
           <p className="mt-1">
             <a href="/" className="font-semibold">
-              Menu digital par MenuMaker
+              Menu digital par V'la le Menu !
             </a>
           </p>
         </footer>

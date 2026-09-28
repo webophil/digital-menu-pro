@@ -50,7 +50,7 @@ export const createCheckoutSession = action({
             attributes: {
               custom_price: false,
               product_options: {
-                name: "MenuMaker Pro",
+                name: "V'la le Menu ! — Pro",
                 description,
                 redirect_url: `${siteUrl}/subscription?checkout=success`,
                 receipt_button_text: "Retour à mon espace",

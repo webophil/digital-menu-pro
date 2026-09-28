@@ -128,8 +128,8 @@ async function applyPlanChange(
       cycle,
       description:
         cycle === "annual"
-          ? "Abonnement MenuMaker Pro — annuel (5 porte-cartes QR inclus)"
-          : "Abonnement MenuMaker Pro (mensuel)",
+          ? "Abonnement V'la le Menu ! Pro — annuel (5 porte-cartes QR inclus)"
+          : "Abonnement V'la le Menu ! Pro (mensuel)",
     });
   } else if (status === "cancelled" || status === "expired") {
     await ctx.runMutation(internal.billingInternal.setPlanFree, {

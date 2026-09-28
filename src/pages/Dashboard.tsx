@@ -272,7 +272,7 @@ export default function Dashboard() {
 
   if (restaurants.length === 0) {
     return (
-      <DashboardShell title="Bienvenue sur MenuMaker" subtitle="Configurons votre établissement en 30 secondes.">
+      <DashboardShell title="Bienvenue sur V'la le Menu !" subtitle="Configurons votre établissement en 30 secondes.">
         <Onboarding />
       </DashboardShell>
     );
