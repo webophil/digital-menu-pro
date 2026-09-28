@@ -188,6 +188,10 @@
   .clay-teal {
     background: linear-gradient(145deg, oklch(0.78 0.13 195), oklch(0.66 0.13 210));
   }
+  /* Variante profonde : blanc parfaitement lisible dessus (cartes tarifaires) */
+  .clay-teal-deep {
+    background: linear-gradient(145deg, oklch(0.6 0.13 205), oklch(0.47 0.11 218));
+  }
   .clay-peach {
     background: linear-gradient(145deg, oklch(0.87 0.09 60), oklch(0.78 0.1 50));
   }

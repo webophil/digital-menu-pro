@@ -300,8 +300,8 @@ export default function Subscription() {
           </CardContent>
         </Card>
 
-        <Card className="clay-teal clay-btn relative overflow-hidden rounded-[2rem] border-0">
-          <Badge className="absolute top-5 right-5 rounded-full border-0 bg-white/90 px-3 py-1 font-extrabold text-clay-deep">
+        <Card className="clay-teal-deep clay-btn relative overflow-hidden rounded-[2rem] border-0">
+          <Badge className="absolute top-5 right-5 rounded-full border-0 bg-white px-3 py-1 font-extrabold text-clay-deep shadow-sm">
             Le plus populaire
           </Badge>
           <CardContent className="flex h-full flex-col gap-4 p-7">
@@ -313,9 +313,9 @@ export default function Subscription() {
                 ) : (
                   <>
                     {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
-                    <span className="text-sm font-bold text-white/80">
+                    <span className="text-sm font-bold text-white">
                       {annual ? " /an" : " /mois"}{" "}
-                      <span className="align-middle text-xs font-semibold text-white/60">
+                      <span className="align-middle text-xs font-semibold text-white/80">
                         (hors TVA)
                       </span>
                     </span>
@@ -329,8 +329,10 @@ export default function Subscription() {
               )}
             </div>
             {!pro && annual && (
-              <div className="flex items-start gap-2 rounded-2xl bg-white/15 p-3 text-sm text-white">
-                <Package className="mt-0.5 size-4 shrink-0" />
+              <div className="clay-flat flex items-start gap-3 rounded-2xl bg-white p-3.5 text-sm text-clay-deep">
+                <span className="clay-teal flex size-8 shrink-0 items-center justify-center rounded-xl text-lg">
+                  🎁
+                </span>
                 <span>
                   <strong>Cadeau :</strong> {PRO_ANNUAL_GIFT_QTY} porte-cartes QR à
                   l'effigie de votre restaurant, expédiés sous 2 semaines après
