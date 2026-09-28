@@ -367,7 +367,7 @@ function Pricing() {
               <p className="text-sm text-white/80">Pour grandir sans limite</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
-              {PRO_PRICE_EUR} € ht<span className="text-lg font-bold text-white/80"> /mois</span>
+              {PRO_PRICE_EUR} €<span className="text-lg font-bold text-white/80"> /mois</span>
             </p>
             <ul className="flex-1 space-y-2.5 text-sm text-white">
               {PLANS.PRO.features.map((f) => (
