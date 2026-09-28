@@ -71,7 +71,7 @@ function Nav() {
 
 // Visuel « scan à table » (photo déposée dans public/images/). Si le fichier
 // est absent, la page retombe élégamment sur la composition d'origine.
-const SCAN_IMG_SRCS = ["/images/hero-scanner.jpg", "/images/hero-scanner.png"];
+const SCAN_IMG_SRCS = ["/qrcode-menu.webp", "/images/hero-scanner.jpg", "/images/hero-scanner.png"];
 
 function Hero() {
   const navigate = useNavigate();
