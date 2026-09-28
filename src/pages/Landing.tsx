@@ -136,7 +136,7 @@ function Hero() {
             <div className="clay-teal flex items-center justify-between px-5 pt-5 pb-8">
               <div>
                 <p className="text-xs font-bold text-white/80">CHEZ MARCEL · PARIS 11</p>
-                <p className="font-[Baloo_2] text-2xl font-extrabold text-white">Carte du soir</p>
+                <p className="font-[Baloo_2] text-2xl font-extrabold text-white">Carte du jour</p>
               </div>
               <div className="clay-sm flex size-10 items-center justify-center rounded-2xl bg-white/90 text-lg">🇬🇧</div>
             </div>
@@ -215,7 +215,7 @@ function Features() {
       icon: <Sparkles className="size-6 text-white" />,
       bg: "clay-berry",
       title: "14 allergènes réglementaires",
-      text: "Cochez les allergènes France (règlement INCO 1169/2011) : ils s'affichent clairement sur le menu client.",
+      text: "Signalez les allergènes (France - règlement INCO 1169/2011) : ils s'affichent clairement sur le menu client.",
     },
     {
       icon: <Languages className="size-6 text-white" />,
@@ -367,7 +367,7 @@ function Pricing() {
               <p className="text-sm text-white/80">Pour grandir sans limite</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
-              {PRO_PRICE_EUR} €<span className="text-lg font-bold text-white/80"> /mois</span>
+              {PRO_PRICE_EUR} €ht<span className="text-lg font-bold text-white/80"> /mois</span>
             </p>
             <ul className="flex-1 space-y-2.5 text-sm text-white">
               {PLANS.PRO.features.map((f) => (
