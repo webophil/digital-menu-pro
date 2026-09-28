@@ -136,17 +136,17 @@ function Hero() {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.7, delay: 0.15 }}
-        className="relative mx-auto w-full max-w-md"
+        className="relative mx-auto w-full max-w-lg"
       >
         <div className={`relative flex items-center justify-center ${scanImgOk ? "flex-col gap-5 sm:flex-row sm:gap-0" : ""}`}>
-          {/* Photo : tente QR posée sur la table du restaurant */}
+          {/* Photo 1 : tente QR posée sur la table du restaurant */}
           {scanImgOk && (
             <motion.div
-              initial={{ opacity: 0, x: -24, rotate: -6 }}
-              animate={{ opacity: 1, x: 0, rotate: -3 }}
+              initial={{ opacity: 0, x: -24, rotate: -7 }}
+              animate={{ opacity: 1, x: 0, rotate: -3.5 }}
               transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ rotate: -1.5, scale: 1.02 }}
-              className="clay relative z-10 w-44 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-48"
+              className="clay relative z-10 w-48 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-56"
             >
               <img
                 src={SCAN_IMG_SRCS[scanImgIdx]}
@@ -173,14 +173,32 @@ function Hero() {
             </div>
           )}
 
-          {/* Démo menu mobile */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.35 }}
-            className="relative"
-          >
-        <div className={`clay rounded-[2.5rem] bg-card p-4 ${scanImgOk ? "mx-auto w-full max-w-[250px] sm:-ml-5" : ""}`}>
+          {/* Photo 2 : main tenant le téléphone avec le menu client ; fallback : mockup si aucune photo */}
+          {scanImgOk ? (
+            <motion.div
+              initial={{ opacity: 0, x: 24, rotate: 6 }}
+              animate={{ opacity: 1, x: 0, rotate: 3 }}
+              transition={{ duration: 0.6, delay: 0.35 }}
+              whileHover={{ rotate: 1.5, scale: 1.02 }}
+              className="clay relative z-10 -ml-6 w-44 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-52"
+            >
+              <img
+                src="/mobile-menu.webp"
+                alt="Menu client affiché sur un téléphone"
+                className="aspect-[4/5] w-full rounded-[1.25rem] object-cover"
+              />
+              <span className="clay-btn absolute -top-3 -right-2 z-20 rounded-full bg-white px-3 py-1 text-[11px] font-extrabold text-clay-deep">
+                2 · Menu affiché
+              </span>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.35 }}
+              className="relative"
+            >
+        <div className={`clay rounded-[2.5rem] bg-card p-4`}>
           <div className="overflow-hidden rounded-[2rem] bg-background">
             <div className="clay-teal flex items-center justify-between px-5 pt-5 pb-8">
               <div>
@@ -232,12 +250,8 @@ function Hero() {
             </div>
           </div>
         </div>
-            {scanImgOk && (
-              <span className="clay-btn absolute -top-3 -right-2 z-20 rounded-full bg-white px-3 py-1 text-[11px] font-extrabold text-clay-deep">
-                2 · Menu affiché
-              </span>
-            )}
-          </motion.div>
+            </motion.div>
+          )}
         </div>
 
         {!scanImgOk && (
