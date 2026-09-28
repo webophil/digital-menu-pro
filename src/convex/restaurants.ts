@@ -311,6 +311,17 @@ export const archiveMenu = mutation({
   },
 });
 
+export const setMenuActive = mutation({
+  args: { menuId: v.id("menus"), active: v.boolean() },
+  handler: async (ctx, { menuId, active }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const owned = await requireOwnedMenu(ctx, menuId, userId);
+    if (!owned) throw new Error("Not found");
+    await ctx.db.patch(menuId, { active });
+  },
+});
+
 export const deleteMenu = mutation({
   args: { menuId: v.id("menus") },
   handler: async (ctx, { menuId }) => {
@@ -374,6 +385,17 @@ export const renameCategory = mutation({
     const cat = await requireOwnedCategory(ctx, categoryId, userId);
     if (!cat) throw new Error("Not found");
     await ctx.db.patch(categoryId, { name, emoji });
+  },
+});
+
+export const setCategoryActive = mutation({
+  args: { categoryId: v.id("categories"), active: v.boolean() },
+  handler: async (ctx, { categoryId, active }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const cat = await requireOwnedCategory(ctx, categoryId, userId);
+    if (!cat) throw new Error("Not found");
+    await ctx.db.patch(categoryId, { active });
   },
 });
 

@@ -21,7 +21,7 @@ export const getPublicMenus = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurantId))
       .collect();
     return menus
-      .filter((m) => !m.archived)
+      .filter((m) => !m.archived && m.active !== false)
       .sort((a, b) => a.position - b.position);
   },
 });
@@ -34,7 +34,9 @@ export const getPublicCategories = query({
       .query("categories")
       .withIndex("by_menu", (q) => q.eq("menuId", menuId))
       .collect();
-    return cats.sort((a, b) => a.position - b.position);
+    return cats
+      .filter((c) => c.active !== false)
+      .sort((a, b) => a.position - b.position);
   },
 });
 

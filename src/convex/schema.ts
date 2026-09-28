@@ -62,6 +62,7 @@ const schema = defineSchema(
       menuType: v.string(), // "carte" | "menu-du-jour" | "soir" | "enfants" | "boissons" | "autre"
       position: v.number(),
       archived: v.optional(v.boolean()),
+      active: v.optional(v.boolean()), // false = menu masqué au client
     }).index("by_restaurant", ["restaurantId"]),
 
     // Catégorie dans un menu (Entrées, Plats, Desserts…)
@@ -71,6 +72,7 @@ const schema = defineSchema(
       name: v.string(),
       emoji: v.optional(v.string()),
       position: v.number(),
+      active: v.optional(v.boolean()), // false = catégorie masquée au client
     }).index("by_menu", ["menuId"]),
 
     // Un plat

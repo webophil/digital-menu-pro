@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DashboardShell } from "@/components/DashboardShell";
+import { VisibilitySwitch } from "@/components/VisibilitySwitch";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { isProSubscription } from "@/convex/plans";
@@ -234,6 +235,9 @@ export default function MenuEditor() {
   const deleteCategory = useMutation(api.restaurants.deleteCategory);
   const deleteDish = useMutation(api.restaurants.deleteDish);
   const setMenuType = useMutation(api.restaurants.setMenuType);
+  const setMenuActive = useMutation(api.restaurants.setMenuActive);
+  const setCategoryActive = useMutation(api.restaurants.setCategoryActive);
+  const updateDish = useMutation(api.restaurants.updateDish);
 
   const [dialog, setDialog] = useState<{
     categoryId: Id<"categories">;
@@ -335,6 +339,21 @@ export default function MenuEditor() {
             </button>
           ))}
         </div>
+        <div className="ml-auto">
+          <VisibilitySwitch
+            active={menu.active !== false}
+            labelWhenOff="Masqué au client"
+            onToggle={(next) =>
+              setMenuActive({ menuId: menu._id, active: next }).then(() =>
+                toast.success(
+                  next
+                    ? `Menu « ${menu.name} » affiché au client`
+                    : `Menu « ${menu.name} » masqué du menu client`,
+                ),
+              )
+            }
+          />
+        </div>
       </div>
 
       {!pro && (
@@ -364,15 +383,33 @@ export default function MenuEditor() {
             const catDishes = dishesByCat.get(cat._id) ?? [];
             return (
               <section key={cat._id}>
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="flex items-center gap-2 font-[Baloo_2] text-xl font-extrabold">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2
+                    className={cn(
+                      "flex items-center gap-2 font-[Baloo_2] text-xl font-extrabold",
+                      cat.active === false && "opacity-50",
+                    )}
+                  >
                     <span className="text-2xl">{cat.emoji ?? "🍽️"}</span>
                     {cat.name}
                     <Badge className="clay-in rounded-full border-0 bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {catDishes.length}
                     </Badge>
                   </h2>
-                  <div className="flex gap-1.5">
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <VisibilitySwitch
+                      active={cat.active !== false}
+                      labelWhenOff="Masquée"
+                      onToggle={(next) =>
+                        setCategoryActive({ categoryId: cat._id, active: next }).then(() =>
+                          toast.success(
+                            next
+                              ? `Catégorie « ${cat.name} » affichée au client`
+                              : `Catégorie « ${cat.name} » masquée du menu client`,
+                          ),
+                        )
+                      }
+                    />
                     <Button
                       size="sm"
                       className="clay-btn clay-teal rounded-2xl font-bold text-white"
@@ -412,7 +449,10 @@ export default function MenuEditor() {
                     {catDishes.map((d) => (
                       <div
                         key={d._id}
-                        className="clay-flat flex items-center gap-3 rounded-3xl bg-card p-3"
+                        className={cn(
+                          "clay-flat flex items-center gap-3 rounded-3xl bg-card p-3 transition-opacity",
+                          d.published === false && "opacity-60",
+                        )}
                       >
                         {d.imageUrl ? (
                           <img
@@ -452,9 +492,24 @@ export default function MenuEditor() {
                             )}
                           </div>
                         </div>
-                        <span className="font-[Baloo_2] shrink-0 text-lg font-extrabold text-clay-deep">
-                          {formatPrice(d.price)}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <VisibilitySwitch
+                            active={d.published !== false}
+                            labelWhenOff="Rupture"
+                            onToggle={(next) =>
+                              updateDish({ dishId: d._id, published: next }).then(() =>
+                                toast.success(
+                                  next
+                                    ? `« ${d.name} » est de retour sur le menu`
+                                    : `« ${d.name} » masqué (rupture de stock)`,
+                                ),
+                              )
+                            }
+                          />
+                          <span className="font-[Baloo_2] text-lg font-extrabold text-clay-deep">
+                            {formatPrice(d.price)}
+                          </span>
+                        </div>
                         <div className="flex shrink-0 gap-1">
                           <Button
                             size="icon"

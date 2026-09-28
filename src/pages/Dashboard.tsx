@@ -25,10 +25,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DashboardShell } from "@/components/DashboardShell";
+import { VisibilitySwitch } from "@/components/VisibilitySwitch";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { isProSubscription, PLANS } from "@/convex/plans";
-import { establishmentTypeLabel, menuTypeLabel } from "@/lib/utils";
+import {
+  cn,
+  establishmentTypeLabel,
+  menuTypeLabel,
+} from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { api as apiRoot } from "@/convex/_generated/api";
 import {
@@ -253,6 +258,7 @@ export default function Dashboard() {
   );
   const visibleMenus = menus ?? [];
   const seed = useMutation(api.restaurants.seedDemoMenu);
+  const setMenuActive = useMutation(api.restaurants.setMenuActive);
   const sub = useQuery(api.billing.getMySubscription);
   const pro = isProSubscription(sub);
 
@@ -342,8 +348,29 @@ export default function Dashboard() {
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {visibleMenus.map((m) => (
-            <Card key={m._id} className="clay-card clay-flat gap-3 rounded-3xl border-0 py-5">
-              <CardHeader className="px-5">
+            <Card
+              key={m._id}
+              className={cn(
+                "clay-card clay-flat gap-3 rounded-3xl border-0 py-5 transition-opacity",
+                m.active === false && "opacity-60",
+              )}
+            >
+              <CardHeader className="gap-2 px-5">
+                <div className="flex justify-end">
+                  <VisibilitySwitch
+                    active={m.active !== false}
+                    labelWhenOff="Masqué au client"
+                    onToggle={(next) =>
+                      setMenuActive({ menuId: m._id, active: next }).then(() =>
+                        toast.success(
+                          next
+                            ? `« ${m.name} » est affiché au client`
+                            : `« ${m.name} » est masqué du menu client`,
+                        ),
+                      )
+                    }
+                  />
+                </div>
                 <div className="flex items-center justify-between">
                   <CardTitle className="font-[Baloo_2] text-xl">{m.name}</CardTitle>
                   <Badge className="clay-in rounded-full border-0 bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">
