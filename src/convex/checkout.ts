@@ -9,12 +9,16 @@ import axios from "axios";
  * Crée une session de checkout Lemon Squeezy pour le plan Pro.
  * L'utilisateur et son email sont passés en custom_data pour que le
  * webhook puisse attribuer le plan après paiement.
+ * - cycle "monthly" : variante LEMONSQUEEZY_VARIANT_ID (19 €/mois)
+ * - cycle "annual"  : variante LEMONSQUEEZY_VARIANT_ID_ANNUAL (190 €/an)
  */
 export const createCheckoutSession = action({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) => {
+  args: { email: v.string(), cycle: v.optional(v.string()) },
+  handler: async (ctx, { email, cycle }) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
+
+    const annual = cycle === "annual";
 
     const apiKey = process.env.LEMONSQUEEZY_API_KEY;
     if (!apiKey) {
@@ -23,7 +27,9 @@ export const createCheckoutSession = action({
       );
     }
     const storeId = process.env.LEMONSQUEEZY_STORE_ID;
-    const variantId = process.env.LEMONSQUEEZY_VARIANT_ID;
+    const variantId = annual
+      ? process.env.LEMONSQUEEZY_VARIANT_ID_ANNUAL
+      : process.env.LEMONSQUEEZY_VARIANT_ID;
     if (!storeId || !variantId) {
       throw new Error(
         "Le paiement n'est pas encore configuré (boutique/variante Lemon Squeezy manquantes). Contactez le support.",
@@ -31,6 +37,9 @@ export const createCheckoutSession = action({
     }
 
     const siteUrl = process.env.CONVEX_SITE_URL || "https://localhost:5173";
+    const description = annual
+      ? "Abonnement Pro annuel (190 € HT) — menus illimités, traduction auto + 5 porte-cartes QR offerts, expédiés sous 2 semaines. TVA 20 % ajoutée au paiement."
+      : "Abonnement Pro mensuel (19 € HT) — menus illimités + traduction automatique. TVA 20 % ajoutée au paiement.";
 
     try {
       const res = await axios.post(
@@ -42,14 +51,14 @@ export const createCheckoutSession = action({
               custom_price: false,
               product_options: {
                 name: "MenuMaker Pro",
-                description: "Abonnement Pro mensuel — menus illimités + traduction automatique",
+                description,
                 redirect_url: `${siteUrl}/subscription?checkout=success`,
                 receipt_button_text: "Retour à mon espace",
               },
               checkout_options: { embed: false, dark: false },
               checkout_data: {
                 email,
-                custom: { user_id: userId, email },
+                custom: { user_id: userId, email, cycle: annual ? "annual" : "monthly" },
               },
               expires_at: null,
             },

@@ -3,6 +3,15 @@
 export const PRO_PRICE_EUR = 19;
 export const PRO_PRICE_CENTS = PRO_PRICE_EUR * 100;
 
+/** Abonnement Pro annuel : 190 € (soit 2 mois offerts par rapport au mensuel). */
+export const PRO_PRICE_ANNUAL_EUR = 190;
+/** Cadeau inclus avec l'abonnement annuel (porte-cartes QR, envoyés par colis). */
+export const PRO_ANNUAL_GIFT_QTY = 5;
+/** TVA française ajoutée au moment du paiement (prix affichés hors TVA). */
+export const VAT_RATE = 0.2;
+
+export type BillingCycle = "monthly" | "annual";
+
 export const PLANS = {
   FREE: {
     id: "free",

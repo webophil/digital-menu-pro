@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -9,7 +11,15 @@ import {
 } from "@/components/ui/card";
 import { DashboardShell } from "@/components/DashboardShell";
 import { api } from "@/convex/_generated/api";
-import { isProPlan, isProSubscription, PLANS, PRO_PRICE_EUR } from "@/convex/plans";
+import { cn } from "@/lib/utils";
+import {
+  isProPlan,
+  isProSubscription,
+  PLANS,
+  PRO_ANNUAL_GIFT_QTY,
+  PRO_PRICE_ANNUAL_EUR,
+  PRO_PRICE_EUR,
+} from "@/convex/plans";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Check,
@@ -17,6 +27,8 @@ import {
   Download,
   Languages,
   Loader2,
+  MapPin,
+  Package,
   Receipt,
   X,
 } from "lucide-react";
@@ -33,6 +45,103 @@ function formatDate(ts: number) {
   });
 }
 
+/** Carte du colis cadeau (abonnement annuel) avec saisie d'adresse. */
+function GiftShipmentCard() {
+  const shipment = useQuery(api.shipments.getMyShipment);
+  const setAddress = useMutation(api.shipments.setAddress);
+  const [form, setForm] = useState({
+    fullName: "",
+    addressLine1: "",
+    addressLine2: "",
+    postalCode: "",
+    city: "",
+    phone: "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  if (shipment === undefined) return null;
+  if (shipment === null) return null;
+
+  const editable = shipment.status !== "shipped";
+  const filled = form.fullName.trim() && form.addressLine1.trim() && form.postalCode.trim() && form.city.trim();
+
+  return (
+    <Card className="clay-butter clay-flat mb-8 rounded-3xl border-0">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-[Baloo_2] text-xl text-[oklch(0.38_0.08_70)]">
+          <Package className="size-5" /> Votre cadeau : {shipment.quantity} porte-cartes QR
+        </CardTitle>
+        <CardDescription className="text-[oklch(0.42_0.07_70)]">
+          {shipment.status === "shipped" ? (
+            <>
+              Colis expédié{shipment.shippedAt ? ` le ${formatDate(shipment.shippedAt)}` : ""}
+              {shipment.trackingNumber ? ` — n° de suivi : ${shipment.trackingNumber}` : ""}.
+            </>
+          ) : shipment.status === "ready" ? (
+            <>Adresse enregistrée ! Vos porte-cartes seront expédiés sous 2 semaines.</>
+          ) : (
+            <>Merci de nous indiquer l'adresse d'expédition du colis.</>
+          )}
+        </CardDescription>
+      </CardHeader>
+      {editable && shipment.status === "awaiting_address" && (
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label className="text-[oklch(0.38_0.08_70)]">Nom complet</Label>
+            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Marie Dupont" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-[oklch(0.38_0.08_70)]">Téléphone (transporteur)</Label>
+            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="06 12 34 56 78" />
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label className="text-[oklch(0.38_0.08_70)]">Adresse</Label>
+            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} placeholder="12 rue des Lilas" />
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} placeholder="Complément (bâtiment, étage…) — optionnel" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:col-span-2 sm:grid-cols-[1fr_2fr]">
+            <div className="grid gap-1.5">
+              <Label className="text-[oklch(0.38_0.08_70)]">Code postal</Label>
+              <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} placeholder="75011" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-[oklch(0.38_0.08_70)]">Ville</Label>
+              <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Paris" />
+            </div>
+          </div>
+          <Button
+            className="clay-btn clay-teal mt-1 h-11 rounded-2xl font-bold text-white sm:col-span-2"
+            disabled={busy || !filled}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await setAddress({
+                  fullName: form.fullName,
+                  addressLine1: form.addressLine1,
+                  addressLine2: form.addressLine2 || undefined,
+                  postalCode: form.postalCode,
+                  city: form.city,
+                  phone: form.phone || undefined,
+                });
+                toast.success("Adresse enregistrée ! Colis prêt à partir.");
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Erreur");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <MapPin className="size-4" />}
+            Enregistrer mon adresse
+          </Button>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 export default function Subscription() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -40,19 +149,21 @@ export default function Subscription() {
   const invoices = useQuery(api.billing.listMyInvoices);
   const checkout = useAction(api.checkout.createCheckoutSession);
   const [busy, setBusy] = useState(false);
+  // Cycle présélectionné : via ?cycle= (lien landing) ; annuel par défaut.
+  const [annual, setAnnual] = useState(searchParams.get("cycle") !== "monthly");
 
   const checkoutStatus = searchParams.get("checkout");
   const pro = isProSubscription(sub);
   const proExpired = !pro && isProPlan(sub?.plan);
 
-  const startCheckout = async () => {
+  const startCheckout = async (cycle: "monthly" | "annual") => {
     if (!user?.email) {
       toast.error("Votre email de compte est requis pour payer.");
       return;
     }
     setBusy(true);
     try {
-      const { url } = await checkout({ email: user.email });
+      const { url } = await checkout({ email: user.email, cycle });
       window.location.href = url;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur de paiement");
@@ -74,6 +185,7 @@ export default function Subscription() {
       title="Abonnement"
       subtitle="Gérez votre plan et retrouvez vos factures"
     >
+      {pro && <GiftShipmentCard />}
       {checkoutStatus === "success" && (
         <div className="clay-teal clay-flat mb-6 flex items-center gap-3 rounded-3xl p-4 text-white">
           <Check className="size-5 shrink-0" />
@@ -123,6 +235,40 @@ export default function Subscription() {
         </CardHeader>
       </Card>
 
+      {/* Bascule Mensuel / Annuel */}
+      {!pro && (
+        <div className="mb-6 flex justify-center">
+          <div className="clay-in flex gap-1 rounded-full bg-muted p-1.5">
+            <button
+              onClick={() => setAnnual(false)}
+              className={cn(
+                "rounded-full px-5 py-2 text-sm font-bold transition-all",
+                !annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
+              )}
+            >
+              Mensuel
+            </button>
+            <button
+              onClick={() => setAnnual(true)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold transition-all",
+                annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
+              )}
+            >
+              Annuel
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-extrabold",
+                  annual ? "bg-white/90 text-clay-deep" : "clay-butter text-[oklch(0.4_0.08_70)]",
+                )}
+              >
+                2 mois offerts
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-10 grid gap-6 md:grid-cols-2">
         <Card className="clay-card clay-flat rounded-[2rem] border-0">
           <CardContent className="flex h-full flex-col gap-4 p-7">
@@ -162,10 +308,36 @@ export default function Subscription() {
             <div>
               <h3 className="text-lg font-bold text-white">Pro</h3>
               <p className="font-[Baloo_2] text-4xl font-extrabold text-white">
-                {PRO_PRICE_EUR} €
-                <span className="text-sm font-bold text-white/80"> /mois</span>
+                {pro ? (
+                  <span className="text-2xl">Abonnement actif</span>
+                ) : (
+                  <>
+                    {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
+                    <span className="text-sm font-bold text-white/80">
+                      {annual ? " /an" : " /mois"}{" "}
+                      <span className="align-middle text-xs font-semibold text-white/60">
+                        (hors TVA)
+                      </span>
+                    </span>
+                  </>
+                )}
               </p>
+              {pro && sub?.currentPeriodEnd && (
+                <p className="text-sm text-white/85">
+                  Jusqu'au {formatDate(sub.currentPeriodEnd)}
+                </p>
+              )}
             </div>
+            {!pro && annual && (
+              <div className="flex items-start gap-2 rounded-2xl bg-white/15 p-3 text-sm text-white">
+                <Package className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  <strong>Cadeau :</strong> {PRO_ANNUAL_GIFT_QTY} porte-cartes QR à
+                  l'effigie de votre restaurant, expédiés sous 2 semaines après
+                  paiement.
+                </span>
+              </div>
+            )}
             <ul className="flex-1 space-y-2 text-sm text-white">
               {PLANS.PRO.features.map((f) => (
                 <li key={f} className="flex items-start gap-2">
@@ -191,14 +363,15 @@ export default function Subscription() {
             ) : (
               <Button
                 className="h-11 rounded-2xl border-0 bg-white font-bold text-clay-deep hover:bg-white/90"
-                onClick={startCheckout}
+                onClick={() => startCheckout(annual ? "annual" : "monthly")}
                 disabled={busy}
               >
                 {busy ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <>
-                    <Crown className="mr-1 size-4" /> Passer au plan Pro
+                    <Crown className="mr-1 size-4" />
+                    {annual ? "Passer au Pro annuel" : "Passer au plan Pro"}
                   </>
                 )}
               </Button>

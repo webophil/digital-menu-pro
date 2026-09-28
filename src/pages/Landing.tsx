@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   Languages,
+  Package,
   QrCode,
   ScanLine,
   Smartphone,
@@ -18,8 +19,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { ALLERGENS } from "@/lib/utils";
-import { PLANS, PRO_PRICE_EUR } from "@/convex/plans";
+import { ALLERGENS, cn } from "@/lib/utils";
+import {
+  PLANS,
+  PRO_ANNUAL_GIFT_QTY,
+  PRO_PRICE_ANNUAL_EUR,
+  PRO_PRICE_EUR,
+} from "@/convex/plans";
 
 function Logo() {
   return (
@@ -388,6 +394,7 @@ function AllergenStrip() {
 
 function Pricing() {
   const navigate = useNavigate();
+  const [annual, setAnnual] = useState(false);
   return (
     <section id="pricing" className="mx-auto w-full max-w-5xl px-4 py-16">
       <div className="mb-12 text-center">
@@ -398,6 +405,38 @@ function Pricing() {
           Commencez gratuitement. Passez au Pro quand votre carte grandit.
         </p>
       </div>
+      {/* Bascule Mensuel / Annuel */}
+      <div className="mb-8 flex justify-center">
+        <div className="clay-in flex gap-1 rounded-full bg-muted p-1.5">
+          <button
+            onClick={() => setAnnual(false)}
+            className={cn(
+              "rounded-full px-5 py-2 text-sm font-bold transition-all",
+              !annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
+            )}
+          >
+            Mensuel
+          </button>
+          <button
+            onClick={() => setAnnual(true)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold transition-all",
+              annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
+            )}
+          >
+            Annuel
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-extrabold",
+                annual ? "bg-white/90 text-clay-deep" : "clay-butter text-[oklch(0.4_0.08_70)]",
+              )}
+            >
+              2 mois offerts
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div className="grid gap-8 md:grid-cols-2">
         <Card className="clay-card clay-ring clay-flat rounded-[2rem] border-0">
           <CardContent className="flex h-full flex-col gap-5 p-8">
@@ -440,14 +479,24 @@ function Pricing() {
               <p className="text-sm text-white/80">Pour grandir sans limite</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
-              {PRO_PRICE_EUR} €
+              {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
               <span className="text-lg font-bold text-white/80">
-                /mois{" "}
+                {annual ? " /an" : " /mois"}{" "}
                 <span className="align-middle text-xs font-semibold text-white/60">
                   (hors TVA)
                 </span>
               </span>
             </p>
+            {annual && (
+              <div className="flex items-start gap-2 rounded-2xl bg-white/15 p-3 text-sm text-white">
+                <Package className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  <strong>Cadeau de bienvenue :</strong> {PRO_ANNUAL_GIFT_QTY} porte-cartes
+                  QR à l'effigie de votre restaurant, expédiés par colis sous 2
+                  semaines après le paiement.
+                </span>
+              </div>
+            )}
             <ul className="flex-1 space-y-2.5 text-sm text-white">
               {PLANS.PRO.features.map((f) => (
                 <li key={f} className="flex items-start gap-2">
@@ -458,9 +507,15 @@ function Pricing() {
             </ul>
             <Button
               className="h-11 rounded-2xl border-0 bg-white font-bold text-clay-deep hover:bg-white/90"
-              onClick={() => navigate("/auth")}
+              onClick={() =>
+                navigate(
+                  annual
+                    ? `/auth?returnTo=${encodeURIComponent("/subscription?cycle=annual")}`
+                    : "/auth",
+                )
+              }
             >
-              Passer au Pro
+              {annual ? "Passer au Pro — 190 €/an" : "Passer au Pro"}
             </Button>
           </CardContent>
         </Card>

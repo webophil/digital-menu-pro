@@ -54,10 +54,10 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
       { email },
     );
     if (found) {
-      await applyPlanChange(ctx, found, status, eventName, attrs);
+      await applyPlanChange(ctx, found, status, eventName, attrs, custom);
     }
   } else if (resolvedUserId) {
-    await applyPlanChange(ctx, resolvedUserId, status, eventName, attrs);
+    await applyPlanChange(ctx, resolvedUserId, status, eventName, attrs, custom);
   }
 
   return new Response(JSON.stringify({ ok: true }), {
@@ -72,6 +72,7 @@ async function applyPlanChange(
   status: string | undefined,
   eventName: string | undefined,
   attrs: any,
+  custom: any = {},
 ) {
   const paidStatuses: string[] = ["active", "paid", "on_trial"];
   const paidEvents: string[] = [
@@ -85,20 +86,50 @@ async function applyPlanChange(
     (eventName === "subscription_payment_success" && status !== "cancelled");
 
   if (isPaid) {
+    // Cycle détecté depuis le montant payé (centimes) ou le custom_data.
+    const customCycle: string | undefined = custom?.cycle ?? undefined;
+    const rawTotal = Number(
+      attrs?.first_order_item?.total ?? attrs?.total ?? 0,
+    );
+    const cycle: "monthly" | "annual" =
+      customCycle === "annual" || rawTotal >= 19000
+        ? "annual"
+        : "monthly";
+
     const periodEnd = attrs?.renews_at
       ? new Date(attrs.renews_at).getTime()
-      : Date.now() + 30 * 24 * 3600 * 1000;
+      : Date.now() +
+        (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
     await ctx.runMutation(internal.billingInternal.setPlanPro, {
       userId: resolvedUserId,
       periodEnd,
+      cycle,
     });
-    const total = attrs?.first_order_item?.total ?? attrs?.total ?? 1900;
+
+    // Colis cadeau (5 porte-cartes QR) offert avec l'abonnement annuel.
+    if (cycle === "annual") {
+      await ctx.runMutation(internal.billingInternal.markShipmentPaid, {
+        userId: resolvedUserId,
+        quantity: 5,
+      });
+    }
+
+    const amountEurCents =
+      Number.isFinite(rawTotal) && rawTotal > 0
+        ? rawTotal
+        : cycle === "annual"
+          ? 19000
+          : 1900;
     await ctx.runMutation(internal.billingInternal.recordInvoice, {
       userId: resolvedUserId,
       number: String(attrs?.order_number ?? attrs?.id ?? `INV-${Date.now()}`),
-      amountEurCents: Number(total) || 1900,
+      amountEurCents,
       plan: "pro",
-      description: "Abonnement MenuMaker Pro (mensuel)",
+      cycle,
+      description:
+        cycle === "annual"
+          ? "Abonnement MenuMaker Pro — annuel (5 porte-cartes QR inclus)"
+          : "Abonnement MenuMaker Pro (mensuel)",
     });
   } else if (status === "cancelled" || status === "expired") {
     await ctx.runMutation(internal.billingInternal.setPlanFree, {

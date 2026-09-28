@@ -137,6 +137,75 @@ export const listRestaurateurs = query({
   },
 });
 
+// ---------- Colis cadeaux (abonnements annuels) ----------
+
+/** Liste des colis cadeaux (5 porte-cartes QR) avec restaurateur et adresse. */
+export const listGiftShipments = query({
+  args: {},
+  handler: async (ctx) => {
+    // Sûr : [] si non-admin (même logique que listRestaurateurs).
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+    const user = await ctx.db.get(userId);
+    if (user?.role !== "admin") return [];
+
+    const shipments = await ctx.db.query("giftShipments").collect();
+    const rows = await Promise.all(
+      shipments.map(async (s) => {
+        const owner = await ctx.db.get(s.userId);
+        const restaurant = s.restaurantId
+          ? await ctx.db.get(s.restaurantId)
+          : null;
+        return {
+          shipmentId: s._id,
+          userId: s.userId,
+          restaurantName: restaurant?.name ?? null,
+          ownerEmail: owner?.email ?? null,
+          quantity: s.quantity,
+          status: s.status,
+          fullName: s.fullName ?? null,
+          addressLine1: s.addressLine1 ?? null,
+          addressLine2: s.addressLine2 ?? null,
+          postalCode: s.postalCode ?? null,
+          city: s.city ?? null,
+          phone: s.phone ?? null,
+          paidAt: s.paidAt ?? null,
+          shippedAt: s.shippedAt ?? null,
+          trackingNumber: s.trackingNumber ?? null,
+          createdAt: s._creationTime,
+        };
+      }),
+    );
+    // À traiter en premier : adresse reçue (ready), puis en attente d'adresse.
+    const rank = { ready: 0, awaiting_address: 1, shipped: 2 } as Record<
+      string,
+      number
+    >;
+    return rows.sort(
+      (a, b) =>
+        (rank[a.status] ?? 3) - (rank[b.status] ?? 3) ||
+        b.createdAt - a.createdAt,
+    );
+  },
+});
+
+/** Marque un colis cadeau comme expédié (avec numéro de suivi optionnel). */
+export const markShipmentShipped = mutation({
+  args: {
+    shipmentId: v.id("giftShipments"),
+    trackingNumber: v.optional(v.string()),
+  },
+  handler: async (ctx, { shipmentId, trackingNumber }) => {
+    await requireAdmin(ctx);
+    await ctx.db.patch(shipmentId, {
+      status: "shipped",
+      shippedAt: Date.now(),
+      trackingNumber: trackingNumber?.trim() || undefined,
+    });
+    return { ok: true };
+  },
+});
+
 /**
  * Attribue le statut PRO à un restaurateur, avec ou sans durée limitée.
  * - durationDays fourni  -> PRO jusqu'à maintenant + durationDays

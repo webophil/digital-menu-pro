@@ -149,8 +149,12 @@ export const findUserByEmail = internalQuery({
 });
 
 export const setPlanPro = internalMutation({
-  args: { userId: v.id("users"), periodEnd: v.optional(v.number()) },
-  handler: async (ctx, { userId, periodEnd }) => {
+  args: {
+    userId: v.id("users"),
+    periodEnd: v.optional(v.number()),
+    cycle: v.optional(v.string()), // "monthly" | "annual"
+  },
+  handler: async (ctx, { userId, periodEnd, cycle }) => {
     const sub = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -171,6 +175,53 @@ export const setPlanPro = internalMutation({
         updatedAt: Date.now(),
       });
     }
+
+    // Abonnement annuel : créer le colis cadeau (5 porte-cartes QR) à expédier.
+    if (cycle === "annual") {
+      const existing = await ctx.db
+        .query("giftShipments")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .first();
+      if (!existing || existing.status === "shipped") {
+        const restaurant = await ctx.db
+          .query("restaurants")
+          .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+          .first();
+        await ctx.db.insert("giftShipments", {
+          userId,
+          restaurantId: restaurant?._id,
+          quantity: 5,
+          status: "awaiting_address",
+          paidAt: Date.now(),
+        });
+      }
+    }
+  },
+});
+
+/** Marque un colis cadeau comme payé (webhook) ou crée-le s'il n'existe pas. */
+export const markShipmentPaid = internalMutation({
+  args: { userId: v.id("users"), quantity: v.optional(v.number()) },
+  handler: async (ctx, { userId, quantity }) => {
+    const existing = await ctx.db
+      .query("giftShipments")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (existing && existing.status !== "shipped") {
+      await ctx.db.patch(existing._id, { paidAt: Date.now() });
+      return;
+    }
+    const restaurant = await ctx.db
+      .query("restaurants")
+      .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+      .first();
+    await ctx.db.insert("giftShipments", {
+      userId,
+      restaurantId: restaurant?._id,
+      quantity: quantity ?? 5,
+      status: "awaiting_address",
+      paidAt: Date.now(),
+    });
   },
 });
 
@@ -198,6 +249,7 @@ export const recordInvoice = internalMutation({
     amountEurCents: v.number(),
     plan: v.string(),
     description: v.string(),
+    cycle: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("invoices", {
@@ -208,6 +260,7 @@ export const recordInvoice = internalMutation({
       status: "paid",
       issuedAt: Date.now(),
       description: args.description,
+      cycle: args.cycle,
     });
   },
 });
