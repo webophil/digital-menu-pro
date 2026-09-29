@@ -220,12 +220,19 @@ export default function MentionsLegales() {
 
           <Section icon={<Gavel className="size-4 text-muted-foreground" />} title="Droit applicable & litiges">
             <p>
-              Le présent site et ses conditions d'utilisation sont régis par le
-              droit français. En cas de litige, et à défaut de résolution
-              amiable, les tribunaux français seront seuls compétents.
-              Conformément à l'article L.616‑1 du Code de la consommation, le
-              consommateur peut également recourir gratuitement à un médiateur
-              de la consommation.
+              Le service proposé sur le présent site s'adresse exclusivement à
+              une clientèle de professionnels (restaurants, brasseries, cafés,
+              food trucks et assimilés). Les conditions d'utilisation et les
+              relations contractuelles entre l'éditeur et ses clients
+              professionnels sont régies par le droit français.
+            </p>
+            <p>
+              Les clients étant des commerçants agissant dans le cadre de leur
+              activité professionnelle, les dispositions protectrices du Code
+              de la consommation (notamment la médiation de la consommation,
+              art. L.616‑1) ne leur sont pas applicables. En cas de litige, et
+              à défaut de résolution amiable préalable (contact@vlalemenu.fr),
+              les tribunaux français seront seuls compétents.
             </p>
           </Section>
         </div>
