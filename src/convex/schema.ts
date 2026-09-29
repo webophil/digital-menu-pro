@@ -41,7 +41,12 @@ const schema = defineSchema(
       slug: v.string(),
       establishmentType: v.string(), // "restaurant" | "brasserie" | "foodtruck" | ...
       city: v.optional(v.string()),
+      // Adresse physique détaillée (infos établissement + facturation)
+      addressNumber: v.optional(v.string()),
+      addressStreet: v.optional(v.string()),
+      postalCode: v.optional(v.string()),
       phone: v.optional(v.string()),
+      siret: v.optional(v.string()), // 14 chiffres — requis en Pro (facturation électronique)
       tagline: v.optional(v.string()),
       currency: v.string(), // ex "€"
       // Traductions de la vitrine (auto, via AI, plan Pro)

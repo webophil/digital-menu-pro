@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { isProSubscription, PLANS } from "@/convex/plans";
-import { Crown, LogOut, ShieldCheck } from "lucide-react";
+import { Crown, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { BrandLogo } from "@/components/Logo";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
@@ -73,6 +73,18 @@ export function DashboardShell({
                 </Link>
               </Button>
             )}
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="clay-sm rounded-2xl border-0 bg-card font-bold"
+              title="Mes infos"
+            >
+              <Link to="/mes-infos">
+                <UserRound className="size-4" />
+                <span className="hidden md:inline">Mes infos</span>
+              </Link>
+            </Button>
             <Button
               variant="ghost"
               size="icon"
