@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { isProSubscription, PLANS } from "@/convex/plans";
-import { Crown, LogOut, ShieldCheck, UtensilsCrossed } from "lucide-react";
+import { Crown, LogOut, ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/Logo";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "@/convex/_generated/api";
@@ -35,12 +36,7 @@ export function DashboardShell({
       <header className="sticky top-0 z-40 px-4 pt-4">
         <div className="clay-card clay-ring mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 rounded-3xl px-5 py-3 shadow-[0_10px_30px_rgba(96,110,140,0.15)]">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="clay-teal clay-sm flex size-9 items-center justify-center rounded-2xl">
-              <UtensilsCrossed className="size-4 text-white" />
-            </div>
-            <span className="font-bold text-clay-deep">
-              V'la le&nbsp;<span className="text-primary">Menu&nbsp;!</span>
-            </span>
+            <BrandLogo className="h-9 w-auto" />
           </Link>
           <div className="flex items-center gap-2">
             <Badge

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { BrandLogo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
@@ -29,14 +30,7 @@ import {
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="clay-teal clay-sm ring-clay-ring flex size-10 items-center justify-center rounded-2xl">
-        <UtensilsCrossed className="size-5 text-white" />
-      </div>
-      <span className="text-xl font-bold tracking-tight text-clay-deep">
-        V'la le&nbsp;<span className="text-primary">Menu&nbsp;!</span>
-      </span>
-    </div>
+    <BrandLogo className="h-10 w-auto" />
   );
 }
 

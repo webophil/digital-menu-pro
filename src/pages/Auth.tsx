@@ -14,7 +14,8 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, Mail, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, Loader2, Mail } from "lucide-react";
+import { BrandLogo } from "@/components/Logo";
 import { Suspense, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
@@ -92,13 +93,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
 
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
-          <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-            <div className="clay-teal clay-sm flex size-11 items-center justify-center rounded-2xl">
-              <UtensilsCrossed className="size-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-clay-deep">
-              V'la le&nbsp;<span className="text-primary">Menu&nbsp;!</span>
-            </span>
+          <Link to="/" className="mb-6 flex items-center justify-center">
+            <BrandLogo className="h-11 w-auto" />
           </Link>
 
           <Card className="clay-card clay rounded-3xl border-0 shadow-none">

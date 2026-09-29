@@ -12,6 +12,7 @@ import { useParams } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { BrandLogo } from "@/components/Logo";
 
 const TYPE_EMOJI: Record<string, string> = {
   carte: "📖",
@@ -249,9 +250,13 @@ export function MenuPreview({
             Allergènes : information fournie à titre indicatif, signalez toute
             allergie au personnel.
           </p>
-          <p className="mt-1">
-            <a href="/" className="font-semibold">
-              Menu digital par V'la le Menu !
+          <p className="mt-2">
+            <a
+              href="/"
+              className="inline-flex items-center"
+              title="Menu digital par V'la le Menu !"
+            >
+              <BrandLogo className="h-5 w-auto" />
             </a>
           </p>
         </footer>
