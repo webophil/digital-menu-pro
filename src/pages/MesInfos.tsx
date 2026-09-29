@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 function formatSiret(value: string) {
@@ -72,7 +72,7 @@ export default function MesInfos() {
   const pro = isProSubscription(sub);
   const updateEmail = useMutation(api.account.updateMyEmail);
   const updateEstablishment = useMutation(api.account.updateEstablishment);
-  const cancelSubscription = useMutation(api.account.cancelSubscription);
+  const cancelSubscription = useAction(api.checkout.cancelSubscription);
 
   const [email, setEmail] = useState("");
   const [form, setForm] = useState<RestaurantForm>(emptyForm);

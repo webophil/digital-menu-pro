@@ -1,8 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { isProSubscription } from "./plans";
-import { internal } from "./_generated/api";
 
 /** Profil du compte connecté : email, rôle, restaurant (s'il existe). */
 export const getMyProfile = query({
@@ -114,28 +112,6 @@ export const updateEstablishment = mutation({
     }
 
     await ctx.db.patch(restaurantId, clean as any);
-    return { ok: true };
-  },
-});
-
-/**
- * Annule l'abonnement Pro en un clic : repasse immédiatement en Gratuit.
- * (La résiliation côté Lemon Squeezy, quand les clés sont configurées,
- * sera déclenchée par le webhook de souscription.)
- */
-export const cancelSubscription = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) throw new Error("Not authenticated");
-    const sub = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-    if (!sub || !isProSubscription(sub)) {
-      throw new Error("Aucun abonnement Pro actif.");
-    }
-    await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
     return { ok: true };
   },
 });

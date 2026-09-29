@@ -2,162 +2,186 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
- * Webhook de paiement (Lemon Squeezy / passerelle d'intégration).
- * Vérifie la signature HMAC avec LEMONSQUEEZY_WEBHOOK_SECRET puis met à jour
+ * Webhook de paiement Stripe (Managed Payments = merchant of record).
+ * Vérifie la signature Stripe avec STRIPE_WEBHOOK_SECRET, puis met à jour
  * le plan de l'abonné et enregistre la facture.
+ *
+ * Événements traités :
+ * - checkout.session.completed : premier paiement (metadata user_id/cycle)
+ * - invoice.paid / invoice.payment_failed : renouvellements et échecs
+ * - customer.subscription.deleted : résiliation
  */
 export const paymentWebhook = httpAction(async (ctx, request) => {
-  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
   const raw = await request.text();
 
-  if (secret) {
-    const signature = request.headers.get("x-signature") ?? "";
-    const valid = await verifySignature(raw, secret, signature);
-    if (!valid) {
-      return new Response(JSON.stringify({ error: "Invalid signature" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-  }
-
-  let payload: any;
+  const sig = request.headers.get("stripe-signature") ?? "";
+  let event: any;
   try {
-    payload = JSON.parse(raw);
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    if (secret) {
+      // Implémentation minimale de stripe.webhooks.constructEvent
+      // (le SDK n'est pas importable dans un httpAction sans "use node").
+      const parts = sig.split(",").map((p) => p.split("="));
+      const timestamp = parts.find((p) => p[0] === "t")?.[1];
+      const v1 = parts.find((p) => p[0] === "v1")?.[1];
+      if (!timestamp || !v1) throw new Error("Signature absente");
+
+      const expected = await hmacHex(`${timestamp}.${raw}`, secret);
+      const ok =
+        timingSafeEqual(expected, v1) &&
+        Math.abs(Date.now() / 1000 - Number(timestamp)) < 300;
+      if (!ok) throw new Error("Signature invalide");
+    }
+    event = JSON.parse(raw);
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: (err as Error).message || "Invalid payload" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
   }
 
-  const eventName: string | undefined =
-    payload?.meta?.event_name ?? payload?.event ?? undefined;
-  const custom = payload?.meta?.custom_data ?? payload?.custom_data ?? {};
-  const userId: string | undefined = custom.user_id ?? undefined;
-  const email: string | undefined = custom.email ?? undefined;
+  const type: string = event?.type ?? "";
+  const object = event?.data?.object ?? {};
 
-  if (!userId && !email) {
-    return new Response(JSON.stringify({ ok: true, ignored: true }), {
+  // ---- Attribution de l'utilisateur ----
+  // (payload JSON : typé any, casté en Id<"users"> aux points d'appel)
+  let userId: any =
+    object?.metadata?.user_id ?? object?.subscription_details?.metadata?.user_id;
+  const email: string | undefined =
+    object?.customer_email ?? object?.customer_details?.email ?? object?.customer_email;
+
+  // invoice.* : la metadata user_id est copiée sur l'abonnement Stripe,
+  // donc remontée automatiquement par Stripe sur les factures suivantes.
+  // Si absente (ancien abonnement), on retombe sur l'email.
+
+  if (!userId && email) {
+    const found = await ctx.runQuery(internal.billingInternal.findUserByEmail, {
+      email,
+    });
+    if (found) userId = found;
+  }
+
+  if (!userId) {
+    return new Response(JSON.stringify({ ok: true, ignored: type }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  const attrs = payload?.data?.attributes ?? {};
-  const status: string | undefined = attrs.status;
+  try {
+    switch (type) {
+      case "checkout.session.completed": {
+        if (object?.status === "expired") break;
+        const cycle = object?.metadata?.cycle === "annual" ? "annual" : "monthly";
+        const periodEnd =
+          object?.subscription_details?.current_period_end
+            ? object.subscription_details.current_period_end * 1000
+            : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
+        await activate(ctx, userId, cycle, periodEnd, object);
+        break;
+      }
 
-  const resolvedUserId: string | null = userId ?? null;
-  if (!resolvedUserId && email) {
-    const found = await ctx.runQuery(
-      internal.billingInternal.findUserByEmail,
-      { email },
-    );
-    if (found) {
-      await applyPlanChange(ctx, found, status, eventName, attrs, custom);
+      case "invoice.paid": {
+        // Renouvellement (1er paiement inclus) : on recalcule la période.
+        const cycle =
+          object?.subscription_details?.metadata?.cycle === "annual"
+            ? "annual"
+            : object?.amount_paid >= 19000
+              ? "annual"
+              : "monthly";
+        const periodEnd = object?.lines?.data?.[0]?.period?.end
+          ? object.lines.data[0].period.end * 1000
+          : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
+        await activate(ctx, userId, cycle, periodEnd, object);
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        await ctx.runMutation(internal.billingInternal.setPlanPro, {
+          userId,
+          periodEnd: undefined,
+          cycle: undefined,
+        });
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
+        break;
+      }
+
+      default:
+        break;
     }
-  } else if (resolvedUserId) {
-    await applyPlanChange(ctx, resolvedUserId, status, eventName, attrs, custom);
+  } catch (err) {
+    console.error("[webhook stripe]", type, err);
+    // 200 quand même : Stripe retenterait inutilement une erreur de nos données.
   }
 
-  return new Response(JSON.stringify({ ok: true }), {
+  return new Response(JSON.stringify({ received: true }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
 });
 
-async function applyPlanChange(
+async function activate(
   ctx: any,
-  resolvedUserId: string,
-  status: string | undefined,
-  eventName: string | undefined,
-  attrs: any,
-  custom: any = {},
+  userId: string,
+  cycle: "monthly" | "annual",
+  periodEnd: number,
+  object: any,
 ) {
-  const paidStatuses: string[] = ["active", "paid", "on_trial"];
-  const paidEvents: string[] = [
-    "subscription_created",
-    "subscription_updated",
-    "order_created",
-  ];
-  const isPaid =
-    (status !== undefined && paidStatuses.includes(status)) ||
-    (eventName !== undefined && paidEvents.includes(eventName)) ||
-    (eventName === "subscription_payment_success" && status !== "cancelled");
+  await ctx.runMutation(internal.billingInternal.setPlanPro, {
+    userId,
+    periodEnd,
+    cycle,
+  });
 
-  if (isPaid) {
-    // Cycle détecté depuis le montant payé (centimes) ou le custom_data.
-    const customCycle: string | undefined = custom?.cycle ?? undefined;
-    const rawTotal = Number(
-      attrs?.first_order_item?.total ?? attrs?.total ?? 0,
-    );
-    const cycle: "monthly" | "annual" =
-      customCycle === "annual" || rawTotal >= 19000
-        ? "annual"
-        : "monthly";
-
-    const periodEnd = attrs?.renews_at
-      ? new Date(attrs.renews_at).getTime()
-      : Date.now() +
-        (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
-    await ctx.runMutation(internal.billingInternal.setPlanPro, {
-      userId: resolvedUserId,
-      periodEnd,
-      cycle,
-    });
-
-    // Colis cadeau (5 porte-cartes QR) offert avec l'abonnement annuel.
-    if (cycle === "annual") {
-      await ctx.runMutation(internal.billingInternal.markShipmentPaid, {
-        userId: resolvedUserId,
-        quantity: 5,
-      });
-    }
-
-    const amountEurCents =
-      Number.isFinite(rawTotal) && rawTotal > 0
-        ? rawTotal
-        : cycle === "annual"
-          ? 19000
-          : 1900;
-    await ctx.runMutation(internal.billingInternal.recordInvoice, {
-      userId: resolvedUserId,
-      number: String(attrs?.order_number ?? attrs?.id ?? `INV-${Date.now()}`),
-      amountEurCents,
-      plan: "pro",
-      cycle,
-      description:
-        cycle === "annual"
-          ? "Abonnement V'la le Menu ! Pro — annuel (5 porte-cartes QR inclus)"
-          : "Abonnement V'la le Menu ! Pro (mensuel)",
-    });
-  } else if (status === "cancelled" || status === "expired") {
-    await ctx.runMutation(internal.billingInternal.setPlanFree, {
-      userId: resolvedUserId,
+  if (cycle === "annual") {
+    await ctx.runMutation(internal.billingInternal.markShipmentPaid, {
+      userId,
+      quantity: 5,
     });
   }
+
+  const amountEurCents =
+    Number(object?.amount_paid ?? object?.amount_total ?? 0) > 0
+      ? Number(object.amount_paid ?? object.amount_total)
+      : cycle === "annual"
+        ? 19000
+        : 1900;
+  await ctx.runMutation(internal.billingInternal.recordInvoice, {
+    userId,
+    number: String(object?.number ?? object?.id ?? `INV-${Date.now()}`),
+    amountEurCents,
+    plan: "pro",
+    cycle,
+    description:
+      cycle === "annual"
+        ? "Abonnement V'la le Menu ! Pro — annuel (5 porte-cartes QR inclus)"
+        : "Abonnement V'la le Menu ! Pro (mensuel)",
+  });
 }
 
-async function verifySignature(
-  raw: string,
-  secret: string,
-  signature: string,
-): Promise<boolean> {
-  try {
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      "raw",
-      enc.encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"],
-    );
-    const mac = await crypto.subtle.sign("HMAC", key, enc.encode(raw));
-    const digest = Array.from(new Uint8Array(mac))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return digest === signature;
-  } catch {
-    return false;
-  }
+async function hmacHex(payload: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, enc.encode(payload));
+  return Array.from(new Uint8Array(mac))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Comparaison à temps constant des signatures. */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
