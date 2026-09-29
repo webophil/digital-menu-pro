@@ -90,7 +90,7 @@ function Hero() {
           Votre Carte digitale prête en quelques minutes...
         </Badge>
         <h1 className="font-[Baloo_2] text-4xl leading-tight font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-          Vos menus digitaux,{" "}
+          Menus digitaux,{" "}
           <span className="bg-gradient-to-r from-[oklch(0.66_0.13_210)] to-[oklch(0.72_0.14_190)] bg-clip-text text-transparent">
             à jour et traduits en temps réel
           </span>
