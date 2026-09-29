@@ -8,6 +8,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -48,6 +59,7 @@ import {
   QrCode,
   Sparkles,
   Store,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -259,6 +271,7 @@ export default function Dashboard() {
   const visibleMenus = menus ?? [];
   const seed = useMutation(api.restaurants.seedDemoMenu);
   const setMenuActive = useMutation(api.restaurants.setMenuActive);
+  const deleteMenu = useMutation(api.restaurants.deleteMenu);
   const [previewOpen, setPreviewOpen] = useState(false);
   const sub = useQuery(api.billing.getMySubscription);
   const pro = isProSubscription(sub);
@@ -397,6 +410,50 @@ export default function Dashboard() {
                       <QrCode className="size-3.5" /> QR code
                     </Link>
                   </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="clay-sm h-9 w-9 shrink-0 rounded-2xl border-0 bg-card text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        title="Supprimer le menu"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="clay-card clay-flat rounded-3xl border-0">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="font-[Baloo_2]">
+                          Supprimer « {m.name} » ?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cette action est définitive : toutes les catégories,
+                          les plats et leurs photos de ce menu seront également
+                          supprimés.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-2xl border-0 bg-muted font-bold">
+                          Annuler
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          className="clay-btn h-10 rounded-2xl bg-destructive font-bold text-white hover:bg-destructive/90"
+                          onClick={() => {
+                            deleteMenu({ menuId: m._id })
+                              .then(() =>
+                                toast.success(`Menu « ${m.name} » supprimé.`),
+                              )
+                              .catch((e) =>
+                                toast.error(
+                                  e instanceof Error ? e.message : "Erreur",
+                                ),
+                              );
+                          }}
+                        >
+                          Supprimer définitivement
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </CardContent>
             </Card>
