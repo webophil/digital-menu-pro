@@ -22,16 +22,20 @@ const TYPE_EMOJI: Record<string, string> = {
   autre: "🍴",
 };
 
-export default function PublicMenu() {
-  const { slug } = useParams<{ slug: string }>();
-  const restaurant = useQuery(
-    api.publicMenu.getPublicRestaurant,
-    slug ? { slug } : "skip",
-  ) as Doc<"restaurants"> | undefined | null;
-  const menus = useQuery(
-    api.publicMenu.getPublicMenus,
-    restaurant ? { restaurantId: restaurant._id } : "skip",
-  ) as Doc<"menus">[] | undefined | null;
+/**
+ * Rendu complet du menu client tel que le voient les clients.
+ * Utilisé par la page publique /m/:slug et par l'aperçu en modale
+ * de l'espace restaurateur.
+ */
+export function MenuPreview({
+  restaurant,
+  menus,
+  className = "mx-auto flex min-h-screen w-full max-w-md flex-col",
+}: {
+  restaurant: Doc<"restaurants">;
+  menus: Doc<"menus">[] | undefined;
+  className?: string;
+}) {
   const [lang, setLang] = useState<LangCode>("fr");
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
@@ -57,12 +61,6 @@ export default function PublicMenu() {
     if (["en", "es", "de"].includes(nav)) setLang(nav);
   }, []);
 
-  useEffect(() => {
-    if (restaurant) {
-      document.title = `${restaurant.name} — Menu digital | V'la le Menu !`;
-    }
-  }, [restaurant]);
-
   const localize = (
     fr: string | undefined,
     en: string | undefined,
@@ -77,48 +75,11 @@ export default function PublicMenu() {
     }
   };
 
-  if (restaurant === undefined) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </main>
-    );
-  }
-
-  if (restaurant === null) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-background gap-3 p-6 text-center">
-        <div className="clay-in flex size-14 items-center justify-center rounded-3xl bg-muted">
-          <UtensilsCrossed className="size-6 text-muted-foreground" />
-        </div>
-        <h1 className="font-[Baloo_2] text-2xl font-extrabold">Menu introuvable</h1>
-        <p className="text-sm text-muted-foreground">
-          Ce lien ne correspond à aucun établissement.
-        </p>
-      </main>
-    );
-  }
-
   const name = localize(restaurant.name, restaurant.nameEn, restaurant.nameEs, restaurant.nameDe);
   const tagline = localize(restaurant.tagline, restaurant.taglineEn, restaurant.taglineEs, restaurant.taglineDe);
 
-  // JSON-LD Restaurant pour le SEO local
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Restaurant",
-    name: restaurant.name,
-    description: restaurant.tagline ?? undefined,
-    servesCuisine: restaurant.establishmentType,
-    telephone: restaurant.phone ?? undefined,
-    address: restaurant.city
-      ? { "@type": "PostalAddress", addressLocality: restaurant.city, addressCountry: "FR" }
-      : undefined,
-    hasMenu: typeof window !== "undefined" ? window.location.href : undefined,
-  };
-
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
-      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+    <div className={className}>
 
       {/* En-tête vitrine */}
       <header className="clay-teal px-6 pt-10 pb-12 text-center">
@@ -296,5 +257,66 @@ export default function PublicMenu() {
         </footer>
       </main>
     </div>
+  );
+}
+
+export default function PublicMenu() {
+  const { slug } = useParams<{ slug: string }>();
+  const restaurant = useQuery(
+    api.publicMenu.getPublicRestaurant,
+    slug ? { slug } : "skip",
+  ) as Doc<"restaurants"> | undefined | null;
+  const menus = useQuery(
+    api.publicMenu.getPublicMenus,
+    restaurant ? { restaurantId: restaurant._id } : "skip",
+  ) as Doc<"menus">[] | undefined | null;
+
+  useEffect(() => {
+    if (restaurant) {
+      document.title = `${restaurant.name} — Menu digital | V'la le Menu !`;
+    }
+  }, [restaurant]);
+
+  if (restaurant === undefined) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </main>
+    );
+  }
+
+  if (restaurant === null) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-background gap-3 p-6 text-center">
+        <div className="clay-in flex size-14 items-center justify-center rounded-3xl bg-muted">
+          <UtensilsCrossed className="size-6 text-muted-foreground" />
+        </div>
+        <h1 className="font-[Baloo_2] text-2xl font-extrabold">Menu introuvable</h1>
+        <p className="text-sm text-muted-foreground">
+          Ce lien ne correspond à aucun établissement.
+        </p>
+      </main>
+    );
+  }
+
+  // JSON-LD Restaurant pour le SEO local
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: restaurant.name,
+    description: restaurant.tagline ?? undefined,
+    servesCuisine: restaurant.establishmentType,
+    telephone: restaurant.phone ?? undefined,
+    address: restaurant.city
+      ? { "@type": "PostalAddress", addressLocality: restaurant.city, addressCountry: "FR" }
+      : undefined,
+    hasMenu: typeof window !== "undefined" ? window.location.href : undefined,
+  };
+
+  return (
+    <>
+      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      <MenuPreview restaurant={restaurant} menus={menus ?? undefined} />
+    </>
   );
 }

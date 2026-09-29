@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { DashboardShell } from "@/components/DashboardShell";
 import { VisibilitySwitch } from "@/components/VisibilitySwitch";
+import { PublicMenuModal } from "@/components/PublicMenuModal";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { isProSubscription, PLANS } from "@/convex/plans";
@@ -40,7 +41,7 @@ import {
   BookOpen,
   Copy,
   Crown,
-  ExternalLink,
+  Eye,
   Loader2,
   Pencil,
   Plus,
@@ -49,7 +50,7 @@ import {
   Store,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -249,7 +250,6 @@ function NewMenuDialog({ restaurantId, disabled }: { restaurantId: Id<"restauran
 
 export default function Dashboard() {
   const { isLoading } = useAuth();
-  const navigate = useNavigate();
   const restaurants = useQuery(api.restaurants.listMyRestaurants, isLoading ? "skip" : {});
   const restaurant = restaurants?.[0] as Doc<"restaurants"> | undefined;
   const menus = useQuery(
@@ -259,6 +259,7 @@ export default function Dashboard() {
   const visibleMenus = menus ?? [];
   const seed = useMutation(api.restaurants.seedDemoMenu);
   const setMenuActive = useMutation(api.restaurants.setMenuActive);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const sub = useQuery(api.billing.getMySubscription);
   const pro = isProSubscription(sub);
 
@@ -306,14 +307,19 @@ export default function Dashboard() {
           <Button
             variant="outline"
             className="clay-sm rounded-2xl border-0 bg-card font-bold"
-            onClick={() => navigate(`/m/${restaurant!.slug}`)}
+            onClick={() => setPreviewOpen(true)}
           >
-            <ExternalLink className="size-4" /> Voir le menu client
+            <Eye className="size-4" /> Voir le menu client
           </Button>
           <NewMenuDialog restaurantId={restaurant!._id} />
         </>
       }
     >
+      <PublicMenuModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        restaurant={restaurant!}
+      />
       {visibleMenus === undefined ? (
         <div className="flex justify-center py-16">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
