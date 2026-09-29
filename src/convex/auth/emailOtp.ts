@@ -27,7 +27,7 @@ export const emailOtp = Email({
           {
             from:
               process.env.RESEND_FROM ??
-              "V'la le Menu ! <onboarding@resend.dev>",
+              "V'la le Menu ! <menu@vlalemenu.fr>",
             to: email,
             reply_to: "contact@vlalemenu.fr",
             subject: "Votre code de connexion — V'la le Menu !",
