@@ -223,7 +223,10 @@ export default function MentionsLegales() {
 
       <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
         © {new Date().getFullYear()} V'la le Menu ! — Menus digitaux pour
-        restaurateurs.
+        restaurateurs ·{" "}
+        <Link to="/politique-confidentialite" className="font-semibold hover:text-foreground">
+          Politique de confidentialité
+        </Link>
       </footer>
     </div>
   );

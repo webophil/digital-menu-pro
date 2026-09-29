@@ -613,6 +613,7 @@ function Footer() {
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>
           <Link to="/contact" className="hover:text-foreground">Contact</Link>
           <Link to="/mentions-legales" className="hover:text-foreground">Mentions légales</Link>
+          <Link to="/politique-confidentialite" className="hover:text-foreground">Confidentialité</Link>
           <Link to="/auth" className="hover:text-foreground">Connexion</Link>
         </div>
       </div>
