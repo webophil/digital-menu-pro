@@ -44,6 +44,7 @@ function Nav() {
           <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
+          <Link to="/contact" className="hover:text-foreground">Contact</Link>
         </div>
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
@@ -610,6 +611,7 @@ function Footer() {
         <div className="flex gap-4 font-semibold">
           <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>
+          <Link to="/contact" className="hover:text-foreground">Contact</Link>
           <Link to="/auth" className="hover:text-foreground">Connexion</Link>
         </div>
       </div>

@@ -133,6 +133,16 @@ const schema = defineSchema(
       cycle: v.optional(v.string()), // "monthly" | "annual"
     }).index("by_user", ["userId"]),
 
+    // Messages du formulaire de contact (page /contact)
+    contactMessages: defineTable({
+      fullName: v.string(),
+      establishment: v.optional(v.string()),
+      email: v.string(),
+      subject: v.string(),
+      message: v.string(),
+      createdAt: v.number(),
+    }).index("by_created_at", ["createdAt"]),
+
     // Cadeau abonnement annuel : 5 porte-cartes QR à expédier par colis
     giftShipments: defineTable({
       userId: v.id("users"),
