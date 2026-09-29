@@ -27,8 +27,14 @@ function stripeClient() {
  * nets, aucune TVA n'est ajoutée (pas de merchant of record).
  */
 export const createCheckoutSession = action({
-  args: { email: v.string(), cycle: v.optional(v.string()) },
-  handler: async (ctx, { email, cycle }) => {
+  args: {
+    email: v.string(),
+    cycle: v.optional(v.string()),
+    // Origine du frontend (window.location.origin) : les URLs de retour
+    // Stripe doivent pointer vers le site React, pas vers le domaine Convex.
+    origin: v.optional(v.string()),
+  },
+  handler: async (ctx, { email, cycle, origin }) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
 
@@ -43,7 +49,10 @@ export const createCheckoutSession = action({
       );
     }
 
-    const siteUrl = process.env.CONVEX_SITE_URL || "http://localhost:5173";
+    const siteUrl =
+      origin && /^https?:\/\//.test(origin)
+        ? origin
+        : process.env.CONVEX_SITE_URL || "http://localhost:5173";
     const metadata = {
       user_id: userId,
       email,

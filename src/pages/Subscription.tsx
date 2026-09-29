@@ -163,7 +163,13 @@ export default function Subscription() {
     }
     setBusy(true);
     try {
-      const { url } = await checkout({ email: user.email, cycle });
+      const { url } = await checkout({
+        email: user.email,
+        cycle,
+        // Stripe doit renvoyer vers le site React (et non vers le domaine
+        // Convex) : on transmet l'origine réelle du navigateur.
+        origin: window.location.origin,
+      });
       window.location.href = url;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur de paiement");
