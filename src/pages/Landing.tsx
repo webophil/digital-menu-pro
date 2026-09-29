@@ -98,7 +98,7 @@ function Hero() {
         <p className="max-w-xl text-lg text-muted-foreground">
           Vos plats, vos photos, vos descriptifs, les 14 allergènes réglementaires, traduction
           automatique en anglais, espagnol et allemand, et un QR code imprimable
-          pour vos tables. Pensé pour les restaurants, brasseries et bistros qui aiment la simplicité.
+          pour vos tables. Pensé pour les restaurants, brasseries et bistros qui veulent efficace et simple.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -282,7 +282,7 @@ function Features() {
       icon: <Camera className="size-6 text-white" />,
       bg: "clay-teal",
       title: "Photos qui donnent faim",
-      text: "Ajoutez une photo par plat. Vos clients voient exactement ce qu'ils vont commander — et commandent plus.",
+      text: "Ajoutez une photo par plat. Vos clients voient exactement ce qu'ils vont commander — et se laissent tenter.",
     },
     {
       icon: <Sparkles className="size-6 text-white" />,
@@ -294,25 +294,25 @@ function Features() {
       icon: <Languages className="size-6 text-white" />,
       bg: "clay-peach",
       title: "Traduction automatique",
-      text: "Du français vers l'anglais, l'espagnol et l'allemand en un clic. Vos plats restent appétissants dans chaque langue.",
+      text: "Du français vers l'anglais, l'espagnol et l'allemand (+ à venir) en un clic. Vos plats restent appétissants dans chaque langue.",
     },
     {
       icon: <Smartphone className="size-6 text-white" />,
       bg: "clay-butter",
       title: "Menu client mobile",
-      text: "Une page élégante, rapide et responsive, à la charte de votre établissement. Aucune app à installer.",
+      text: "Une page élégante, rapide et responsive, au nom de votre établissement. Aucune app à installer, juste à scanner.",
     },
     {
       icon: <QrCode className="size-6 text-white" />,
       bg: "clay-teal",
       title: "QR code imprimable",
-      text: "Téléchargez le QR code de chaque menu et affichez-le sur vos tables, votre vitrine ou votre camion.",
+      text: "Téléchargez le QR code de chaque menu et affichez-le sur vos tables, votre vitrine ou votre comptoir.",
     },
     {
       icon: <UtensilsCrossed className="size-6 text-white" />,
       bg: "clay-berry",
       title: "Catégories & types de menu",
-      text: "Carte, menu du jour, carte du soir, menu enfants… Organisez tout par catégories avec emojis.",
+      text: "Carte, menu du jour, carte du soir, menu enfants… Organisez tout par catégories dans des onglets cliquables.",
     },
   ];
   return (
@@ -323,7 +323,7 @@ function Features() {
           <span className="text-primary">qui donne envie</span>
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-          Conçu avec des restaurateurs : simple à remplir, magnifique pour vos clients.
+          Conçu avec des restaurateurs : simple à utiliser, vite indispensable pour vos clients.
         </p>
       </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -586,7 +586,7 @@ function CtaBanner() {
         </h2>
         <p className="relative mx-auto mt-3 max-w-xl text-white/90">
           Créez votre compte, ajoutez vos plats, imprimez votre QR code.
-          Vos clients scannent, vous brillez.
+          Vos clients scannent, vous servez.
         </p>
         <Button
           size="lg"
