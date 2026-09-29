@@ -1,7 +1,6 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { isProSubscription, PLANS } from "@/convex/plans";
+import { isProSubscription } from "@/convex/plans";
 import {
   BookOpen,
   Crown,
@@ -99,35 +98,12 @@ export function DashboardShell({
             <BrandLogo className="h-9 w-auto" />
           </Link>
           <div className="flex items-center gap-2">
-            <Link
-              to="/subscription"
-              title={pro ? "Gérer mon abonnement" : "Découvrir le plan Pro"}
-              className="shrink-0"
-            >
-              <Badge
-                className={cn(
-                  "cursor-pointer rounded-full border-0 px-3 py-1 font-bold transition-transform hover:scale-105",
-                  pro
-                    ? "clay-teal text-white"
-                    : "clay-in bg-muted text-muted-foreground",
-                )}
-              >
-                {pro ? (
-                  <>
-                    <Crown className="mr-1 size-3.5" /> Plan Pro
-                  </>
-                ) : (
-                  <>Plan {PLANS.FREE.label}</>
-                )}
-              </Badge>
-            </Link>
-            {!pro && (
-              <Button asChild size="sm" className="clay-btn clay-teal hidden rounded-2xl font-bold text-white sm:inline-flex">
-                <Link to="/subscription">
-                  <Crown className="size-4" /> Passer Pro
-                </Link>
-              </Button>
-            )}
+            <NavLinkButton
+              to="/mes-infos"
+              icon={<UserRound className="size-4" />}
+              label="Mes infos"
+              alwaysLabel
+            />
             <NavLinkButton
               to="/dashboard"
               icon={<BookOpen className="size-4" />}
@@ -152,11 +128,13 @@ export function DashboardShell({
                 </Link>
               </Button>
             )}
-            <NavLinkButton
-              to="/mes-infos"
-              icon={<UserRound className="size-4" />}
-              label="Mes infos"
-            />
+            {!pro && (
+              <Button asChild size="sm" className="clay-btn clay-teal hidden rounded-2xl font-bold text-white sm:inline-flex">
+                <Link to="/subscription">
+                  <Crown className="size-4" /> Passer Pro
+                </Link>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
