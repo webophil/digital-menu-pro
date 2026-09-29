@@ -1,0 +1,1 @@
+import{j as t}from"./framer-motion-hU4m-n_E.js";function o({className:e="h-10 w-auto"}){return t.jsx("img",{src:"/vlalemenu-logo.webp",alt:"V'la le Menu !",width:2168,height:725,className:`mix-blend-multiply ${e}`})}export{o as B};
