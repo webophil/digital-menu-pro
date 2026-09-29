@@ -84,6 +84,7 @@ const schema = defineSchema(
       price: v.number(), // en euros
       imageUrl: v.optional(v.string()),
       allergens: v.array(v.string()), // codes des 14 allergènes FR
+      photos: v.optional(v.array(v.id("_storage"))), // WebP optimisés, ordre = affichage
       published: v.optional(v.boolean()),
       position: v.number(),
       // Traductions automatiques (plan Pro)

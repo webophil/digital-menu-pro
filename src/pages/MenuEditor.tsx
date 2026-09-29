@@ -12,13 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DashboardShell } from "@/components/DashboardShell";
 import { VisibilitySwitch } from "@/components/VisibilitySwitch";
+import { DishThumb, PhotoUploader } from "@/components/PhotoUploader";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { isProSubscription } from "@/convex/plans";
 import { ALLERGENS, MENU_TYPES, menuTypeLabel, formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
-  Camera,
   Check,
   ChevronLeft,
   Languages,
@@ -26,7 +26,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -39,7 +38,6 @@ interface DishDraft {
   name: string;
   description: string;
   price: string;
-  imageUrl: string;
   allergens: string[];
 }
 
@@ -47,19 +45,18 @@ const emptyDish: DishDraft = {
   name: "",
   description: "",
   price: "",
-  imageUrl: "",
   allergens: [],
 };
 
 function DishDialog({
-  restaurantId,
   categoryId,
   initial,
+  pro,
   onClose,
 }: {
-  restaurantId: Id<"restaurants">;
   categoryId: Id<"categories">;
   initial: DishDraft | null;
+  pro: boolean;
   onClose: () => void;
 }) {
   const isEdit = initial !== null;
@@ -97,7 +94,6 @@ function DishDialog({
           name: draft.name.trim(),
           description: draft.description.trim() || undefined,
           price,
-          imageUrl: draft.imageUrl.trim() || undefined,
           allergens: draft.allergens,
         });
         toast.success("Plat mis à jour");
@@ -107,7 +103,6 @@ function DishDialog({
           name: draft.name.trim(),
           description: draft.description.trim() || undefined,
           price,
-          imageUrl: draft.imageUrl.trim() || undefined,
           allergens: draft.allergens,
         });
         toast.success("Plat ajouté !");
@@ -147,28 +142,15 @@ function DishDialog({
               onChange={(e) => set("description", e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>Prix (€) *</Label>
-              <Input
-                className="clay-in h-11 rounded-2xl border-0 bg-muted"
-                placeholder="18,00"
-                inputMode="decimal"
-                value={draft.price}
-                onChange={(e) => set("price", e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>
-                <Camera className="mr-1 inline size-3.5" /> Photo (URL)
-              </Label>
-              <Input
-                className="clay-in h-11 rounded-2xl border-0 bg-muted"
-                placeholder="https://…"
-                value={draft.imageUrl}
-                onChange={(e) => set("imageUrl", e.target.value)}
-              />
-            </div>
+          <div className="grid gap-2">
+            <Label>Prix (€) *</Label>
+            <Input
+              className="clay-in h-11 rounded-2xl border-0 bg-muted"
+              placeholder="18,00"
+              inputMode="decimal"
+              value={draft.price}
+              onChange={(e) => set("price", e.target.value)}
+            />
           </div>
           <div className="grid gap-2">
             <Label>Allergènes (France — 14 obligatoires)</Label>
@@ -194,6 +176,16 @@ function DishDialog({
                 );
               })}
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Photos</Label>
+            {isEdit && draft._id ? (
+              <PhotoUploader dishId={draft._id} pro={pro} />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Enregistrez le plat, puis ajoutez ses photos.
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -454,17 +446,7 @@ export default function MenuEditor() {
                           d.published === false && "opacity-60",
                         )}
                       >
-                        {d.imageUrl ? (
-                          <img
-                            src={d.imageUrl}
-                            alt={d.name}
-                            className="size-16 shrink-0 rounded-2xl object-cover"
-                          />
-                        ) : (
-                          <div className="clay-in flex size-16 shrink-0 items-center justify-center rounded-2xl bg-muted">
-                            <UtensilsCrossed className="size-5 text-muted-foreground" />
-                          </div>
-                        )}
+                        <DishThumb dishId={d._id} imageUrl={d.imageUrl} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-bold">{d.name}</p>
                           {d.description && (
@@ -523,7 +505,6 @@ export default function MenuEditor() {
                                   name: d.name,
                                   description: d.description ?? "",
                                   price: String(d.price),
-                                  imageUrl: d.imageUrl ?? "",
                                   allergens: [...d.allergens],
                                 },
                               })
@@ -634,9 +615,9 @@ export default function MenuEditor() {
 
       {dialog && restaurant && (
         <DishDialog
-          restaurantId={restaurant._id}
           categoryId={dialog.categoryId}
           initial={dialog.initial}
+          pro={pro}
           onClose={() => setDialog(null)}
         />
       )}

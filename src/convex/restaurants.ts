@@ -68,6 +68,17 @@ async function requireOwnedDish(ctx: { db: any }, dishId: any, userId: any) {
   return dish;
 }
 
+/** Supprime du stockage les photos WebP d'un plat (après retrait du document). */
+async function purgePhotos(ctx: { storage: any }, photos?: string[]) {
+  for (const id of photos ?? []) {
+    try {
+      await ctx.storage.delete(id as any);
+    } catch {
+      // déjà supprimé : ignorer
+    }
+  }
+}
+
 // ---------- Lectures ----------
 
 export const listMyRestaurants = query({
@@ -338,7 +349,10 @@ export const deleteMenu = mutation({
         .query("dishes")
         .withIndex("by_category", (q) => q.eq("categoryId", cat._id))
         .collect();
-      for (const d of dishes) await ctx.db.delete(d._id);
+      for (const d of dishes) {
+        await ctx.db.delete(d._id);
+        await purgePhotos(ctx, d.photos);
+      }
       await ctx.db.delete(cat._id);
     }
     await ctx.db.delete(menuId);
@@ -410,7 +424,10 @@ export const deleteCategory = mutation({
       .query("dishes")
       .withIndex("by_category", (q) => q.eq("categoryId", categoryId))
       .collect();
-    for (const d of dishes) await ctx.db.delete(d._id);
+    for (const d of dishes) {
+      await ctx.db.delete(d._id);
+      await purgePhotos(ctx, d.photos);
+    }
     await ctx.db.delete(categoryId);
   },
 });
@@ -477,6 +494,7 @@ export const deleteDish = mutation({
     const dish = await requireOwnedDish(ctx, dishId, userId);
     if (!dish) throw new Error("Not found");
     await ctx.db.delete(dishId);
+    await purgePhotos(ctx, dish.photos);
   },
 });
 

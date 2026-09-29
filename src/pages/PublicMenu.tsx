@@ -1,11 +1,14 @@
 import { allergenLabel, formatPrice, ALLERGENS, LANGS, type LangCode, cn } from "@/lib/utils";
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Languages,
   Loader2,
   MapPin,
   Phone,
   UtensilsCrossed,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
@@ -22,6 +25,155 @@ const TYPE_EMOJI: Record<string, string> = {
   boissons: "🥤",
   autre: "🍴",
 };
+
+type DishPhoto = { url: string };
+
+/** Photos d'un plat : carrousel auto si plusieurs (plan Pro), cliquable. */
+function DishPhotos({
+  photos,
+  multi,
+  alt,
+  onOpen,
+}: {
+  photos: DishPhoto[];
+  multi: boolean;
+  alt: string;
+  onOpen: (index: number) => void;
+}) {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    if (!multi || photos.length < 2) return;
+    const t = setInterval(
+      () => setIdx((i) => (i + 1) % photos.length),
+      3500,
+    );
+    return () => clearInterval(t);
+  }, [multi, photos.length]);
+
+  if (photos.length === 0) return null;
+
+  return (
+    <button
+      type="button"
+      className="relative size-20 shrink-0 cursor-zoom-in overflow-hidden rounded-2xl"
+      onClick={() => onOpen(idx)}
+      aria-label="Agrandir les photos du plat"
+    >
+      <img
+        src={photos[idx]?.url}
+        alt={alt}
+        loading="lazy"
+        className="size-full object-cover"
+      />
+      {multi && (
+        <>
+          <span className="absolute top-1 right-1 rounded-full bg-black/45 px-1.5 text-[9px] font-bold text-white">
+            {idx + 1}/{photos.length}
+          </span>
+          <span className="absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-1">
+            {photos.map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "size-1.5 rounded-full transition-colors",
+                  i === idx ? "bg-white" : "bg-white/50",
+                )}
+              />
+            ))}
+          </span>
+        </>
+      )}
+    </button>
+  );
+}
+
+/** Visionneuse plein écran : fermeture par la croix ou Échap. */
+function Lightbox({
+  photos,
+  index,
+  onClose,
+  onNavigate,
+}: {
+  photos: DishPhoto[];
+  index: number;
+  onClose: () => void;
+  onNavigate: (delta: number) => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") onNavigate(1);
+      if (e.key === "ArrowLeft") onNavigate(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose, onNavigate]);
+
+  const photo = photos[index];
+  if (!photo) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <button
+        type="button"
+        title="Fermer"
+        aria-label="Fermer"
+        className="absolute top-4 right-4 z-10 rounded-full bg-white/15 p-2 text-white backdrop-blur transition-colors hover:bg-white/30"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      >
+        <X className="size-5" />
+      </button>
+      {photos.length > 1 && (
+        <>
+          <button
+            type="button"
+            title="Photo précédente"
+            className="absolute left-3 rounded-full bg-white/15 p-2 text-white backdrop-blur transition-colors hover:bg-white/30"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate(-1);
+            }}
+          >
+            <ChevronLeft className="size-6" />
+          </button>
+          <button
+            type="button"
+            title="Photo suivante"
+            className="absolute right-3 rounded-full bg-white/15 p-2 text-white backdrop-blur transition-colors hover:bg-white/30"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate(1);
+            }}
+          >
+            <ChevronRight className="size-6" />
+          </button>
+          <p className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs font-bold text-white">
+            {index + 1} / {photos.length}
+          </p>
+        </>
+      )}
+      <img
+        src={photo.url}
+        alt=""
+        className="max-h-[88vh] max-w-full rounded-2xl object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
 
 /**
  * Rendu complet du menu client tel que le voient les clients.
@@ -55,6 +207,22 @@ export function MenuPreview({
     api.publicMenu.getPublicDishesBatch,
     menu && categories ? { categoryIds: categories.map((c) => c._id) } : "skip",
   );
+
+  const allDishIds = useMemo(
+    () => (dishesLists ?? []).map((d) => d._id),
+    [dishesLists],
+  );
+  const photosByDish = useQuery(
+    api.photos.getPhotosBatch,
+    allDishIds.length > 0 ? { dishIds: allDishIds } : "skip",
+  );
+  const isPro = useQuery(api.photos.isProRestaurant, {
+    restaurantId: restaurant._id,
+  });
+  const [lightbox, setLightbox] = useState<{
+    dishId: string;
+    index: number;
+  } | null>(null);
 
   // Langue du navigateur au premier chargement
   useEffect(() => {
@@ -196,14 +364,19 @@ export function MenuPreview({
                       d.descriptionEs,
                       d.descriptionDe,
                     );
+                    const dPhotos: DishPhoto[] =
+                      photosByDish?.[d._id] ??
+                      (d.imageUrl ? [{ url: d.imageUrl }] : []);
                     return (
                       <article key={d._id} className="flex gap-3">
-                        {d.imageUrl && (
-                          <img
-                            src={d.imageUrl}
-                            alt={dName}
-                            loading="lazy"
-                            className="size-20 shrink-0 rounded-2xl object-cover"
+                        {dPhotos.length > 0 && (
+                          <DishPhotos
+                            photos={dPhotos}
+                            multi={isPro === true}
+                            alt={dName ?? d.name}
+                            onOpen={(i) =>
+                              setLightbox({ dishId: d._id, index: i })
+                            }
                           />
                         )}
                         <div className="min-w-0 flex-1">
@@ -261,6 +434,21 @@ export function MenuPreview({
           </p>
         </footer>
       </main>
+
+      {lightbox && (
+        <Lightbox
+          photos={photosByDish?.[lightbox.dishId] ?? []}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onNavigate={(delta) =>
+            setLightbox((lb) => {
+              if (!lb) return lb;
+              const n = photosByDish?.[lb.dishId]?.length ?? 1;
+              return { ...lb, index: (lb.index + delta + n) % n };
+            })
+          }
+        />
+      )}
     </div>
   );
 }
