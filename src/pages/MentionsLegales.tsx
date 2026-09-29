@@ -1,0 +1,231 @@
+import { BrandLogo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ArrowLeft, Database, Gavel, Mail, Server, UserRound } from "lucide-react";
+import { Link } from "react-router";
+
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="clay-card clay-flat rounded-3xl border-0">
+      <CardHeader className="gap-1.5 pb-3">
+        <CardTitle className="flex items-center gap-2.5 font-[Baloo_2] text-lg">
+          <span className="clay-in flex size-9 items-center justify-center rounded-2xl bg-muted">
+            {icon}
+          </span>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function MentionsLegales() {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-40 px-4 pt-4">
+        <nav className="clay-card clay-ring mx-auto flex w-full max-w-6xl items-center justify-between rounded-3xl px-5 py-3 shadow-[0_10px_30px_rgba(96,110,140,0.15)]">
+          <Link to="/" aria-label="Retour à l'accueil">
+            <BrandLogo className="h-9 w-auto" />
+          </Link>
+          <Button
+            asChild
+            variant="ghost"
+            className="rounded-2xl font-bold text-muted-foreground"
+          >
+            <Link to="/">
+              <ArrowLeft className="size-4" /> Retour au site
+            </Link>
+          </Button>
+        </nav>
+      </header>
+
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
+        <div className="mb-8 text-center">
+          <div className="clay-teal mx-auto mb-4 flex size-14 items-center justify-center rounded-3xl">
+            <Gavel className="size-7 text-white" />
+          </div>
+          <h1 className="font-[Baloo_2] text-3xl font-extrabold sm:text-4xl">
+            Mentions légales
+          </h1>
+          <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
+            Informations légales relatives au site vlalemenu.fr, conformément à
+            la loi n° 2004-575 du 21 juin 2004 pour la confiance dans
+            l'économie numérique (LCEN).
+          </p>
+        </div>
+
+        <div className="space-y-5">
+          <Section icon={<UserRound className="size-4 text-muted-foreground" />} title="Éditeur du site">
+            <p>
+              <strong className="text-foreground">PhilDEV — Philippe PERARD</strong>
+              <br />
+              Entrepreneur individuel (micro-entrepreneur)
+              <br />
+              37 rue Hincmar — 51100 Reims, France
+            </p>
+            <p>
+              N° SIRET : <strong className="text-foreground">325 342 418 00051</strong>
+              <br />
+              TVA non applicable, art. 293 B du CGI.
+            </p>
+            <p className="flex items-center gap-1.5">
+              <Mail className="size-3.5 shrink-0" />
+              Contact : contact@vlalemenu.fr — via la{" "}
+              <Link to="/contact" className="font-semibold text-primary underline underline-offset-2">
+                page Contact
+              </Link>
+              .
+            </p>
+            <p>
+              Responsable de la publication : Philippe PERARD.
+            </p>
+          </Section>
+
+          <Section icon={<Server className="size-4 text-muted-foreground" />} title="Hébergement du site">
+            <p>
+              Le site est hébergé par des infrastructures cloud situées dans
+              l'Union européenne :
+            </p>
+            <p>
+              <strong className="text-foreground">HETZNER Online GmbH</strong>
+              <br />
+              Finnische Straße 2, 90463 Nuremberg, Allemagne
+              <br />
+              <a
+                href="https://www.hetzner.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                hetzner.com
+              </a>
+            </p>
+            <p>
+              <strong className="text-foreground">Amazon Web Services EMEA SARL</strong>{" "}
+              (services associés : e-mail transactionnel, fonctions de calcul)
+              <br />
+              38 Avenue John F. Kennedy, L-1855 Luxembourg
+              <br />
+              <a
+                href="https://aws.amazon.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                aws.amazon.com
+              </a>
+            </p>
+          </Section>
+
+          <Section icon={<Database className="size-4 text-muted-foreground" />} title="Stockage des données">
+            <p>
+              Les données saisies sur la plateforme (comptes, établissements,
+              menus, plats, messages de contact) sont stockées et traitées sur
+              les serveurs cloud de :
+            </p>
+            <p>
+              <strong className="text-foreground">Convex, Inc.</strong>
+              <br />
+              2261 Market Street, San Francisco, CA 94114, États-Unis
+              <br />
+              <a
+                href="https://www.convex.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                convex.dev
+              </a>
+            </p>
+            <p>
+              Convex applique le cadre{" "}
+              <strong className="text-foreground">EU‑US Data Privacy Framework</strong>{" "}
+              (certification au 10 juillet 2023) pour les transferts de données
+              depuis l'Union européenne vers les États-Unis, garantissant un
+              niveau de protection adéquat au sens du RGPD. Les photos de plats
+              sont stockées sur le stockage objet de Convex, chiffrées au repos.
+            </p>
+          </Section>
+
+          <Section icon={<Gavel className="size-4 text-muted-foreground" />} title="Propriété intellectuelle">
+            <p>
+              L'ensemble des contenus du site (textes, visuels, logo, charte
+              graphique, code) est la propriété exclusive de PhilDEV /
+              Philippe PERARD, sauf mention contraire. Toute reproduction,
+              représentation ou exploitation, totale ou partielle, sans
+              autorisation écrite préalable est interdite et constituerait une
+              contrefaçon sanctionnée par les articles L.335‑2 et suivants du
+              Code de la propriété intellectuelle.
+            </p>
+          </Section>
+
+          <Section icon={<Database className="size-4 text-muted-foreground" />} title="Données personnelles & RGPD">
+            <p>
+              Les données collectées via le site le sont uniquement pour
+              fournir le service (création de compte, gestion des menus,
+              facturation) ou répondre aux demandes de contact. Elles ne sont
+              ni vendues, ni cédées à des tiers à des fins commerciales.
+            </p>
+            <p>
+              Conformément au Règlement général sur la protection des données
+              (RGPD) et à la loi Informatique et Libertés, vous disposez d'un
+              droit d'accès, de rectification, d'effacement et de portabilité
+              de vos données. Pour l'exercer, écrivez à{" "}
+              <strong className="text-foreground">contact@vlalemenu.fr</strong>.
+              Les données des comptes sont conservées pendant la durée de
+              l'abonnement puis supprimées à la demande ou après un délai
+              maximal de 12 mois suivant la fermeture du compte.
+            </p>
+          </Section>
+
+          <Section icon={<Server className="size-4 text-muted-foreground" />} title="Cookies & traceurs">
+            <p>
+              Le site n'utilise pas de cookies publicitaires ni de traceurs
+              tiers. Seuls des éléments techniques strictement nécessaires au
+              fonctionnement du service (session de connexion, sécurité) sont
+              utilisés, conformément aux recommandations de la CNIL — aucun
+              bandeau de consentement n'est requis pour ces finalités
+              essentielles.
+            </p>
+          </Section>
+
+          <Section icon={<Gavel className="size-4 text-muted-foreground" />} title="Droit applicable & litiges">
+            <p>
+              Le présent site et ses conditions d'utilisation sont régis par le
+              droit français. En cas de litige, et à défaut de résolution
+              amiable, les tribunaux français seront seuls compétents.
+              Conformément à l'article L.616‑1 du Code de la consommation, le
+              consommateur peut également recourir gratuitement à un médiateur
+              de la consommation.
+            </p>
+          </Section>
+        </div>
+
+        <p className="mt-8 text-center text-xs text-muted-foreground">
+          Dernière mise à jour : septembre 2026.
+        </p>
+      </main>
+
+      <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
+        © {new Date().getFullYear()} V'la le Menu ! — Menus digitaux pour
+        restaurateurs.
+      </footer>
+    </div>
+  );
+}

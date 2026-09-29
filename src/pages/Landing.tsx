@@ -608,10 +608,11 @@ function Footer() {
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 text-sm text-muted-foreground sm:flex-row">
         <Logo />
         <p>© {new Date().getFullYear()} V'la le Menu ! — Menus digitaux pour restaurateurs.</p>
-        <div className="flex gap-4 font-semibold">
+        <div className="flex flex-wrap justify-center gap-4 font-semibold">
           <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>
           <Link to="/contact" className="hover:text-foreground">Contact</Link>
+          <Link to="/mentions-legales" className="hover:text-foreground">Mentions légales</Link>
           <Link to="/auth" className="hover:text-foreground">Connexion</Link>
         </div>
       </div>
