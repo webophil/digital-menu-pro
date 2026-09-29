@@ -228,6 +228,16 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               ← Retour à l'accueil
             </Link>
           </p>
+
+          <p className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-muted-foreground">
+            <Link to="/mentions-legales" className="hover:text-foreground">
+              Mentions légales
+            </Link>
+            <Link to="/politique-confidentialite" className="hover:text-foreground">
+              Confidentialité
+            </Link>
+            <Link to="/contact" className="hover:text-foreground">Contact</Link>
+          </p>
         </div>
       </div>
     </div>
