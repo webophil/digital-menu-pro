@@ -282,7 +282,7 @@ export default function MesInfos() {
                     Annuler mon abonnement
                   </Button>
                   <Button asChild variant="ghost" className="rounded-2xl font-bold text-muted-foreground">
-                    <Link to="/subscription">Gérer mon offre</Link>
+                    <Link to="/subscription">Gérer mon offre et mes factures</Link>
                   </Button>
                 </>
               ) : (
