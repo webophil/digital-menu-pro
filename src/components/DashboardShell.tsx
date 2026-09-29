@@ -2,12 +2,72 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { isProSubscription, PLANS } from "@/convex/plans";
-import { Crown, LogOut, ShieldCheck, UserRound } from "lucide-react";
+import {
+  BookOpen,
+  Crown,
+  LogOut,
+  Palette,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { BrandLogo } from "@/components/Logo";
+import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
+
+/** Lien de navigation du header, surligné sur la page courante. */
+function NavLinkButton({
+  to,
+  icon,
+  label,
+  disabled = false,
+  alwaysLabel = false,
+}: {
+  to: string;
+  icon: ReactNode;
+  label: string;
+  disabled?: boolean;
+  alwaysLabel?: boolean;
+}) {
+  const { pathname } = useLocation();
+  const active = !disabled && pathname === to;
+
+  if (disabled) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled
+        title="Bientôt disponible"
+        className="clay-sm rounded-2xl border-0 bg-card font-bold text-muted-foreground"
+      >
+        {icon}
+        <span className={alwaysLabel ? "" : "hidden sm:inline"}>{label}</span>
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      asChild
+      size="sm"
+      variant="outline"
+      className={cn(
+        "rounded-2xl border-0 font-bold",
+        active
+          ? "clay-btn clay-teal text-white"
+          : "clay-sm bg-card",
+      )}
+    >
+      <Link to={to} title={label}>
+        {icon}
+        <span className={alwaysLabel ? "" : "hidden sm:inline"}>{label}</span>
+      </Link>
+    </Button>
+  );
+}
 
 export function DashboardShell({
   children,
@@ -39,21 +99,28 @@ export function DashboardShell({
             <BrandLogo className="h-9 w-auto" />
           </Link>
           <div className="flex items-center gap-2">
-            <Badge
-              className={
-                pro
-                  ? "clay-teal rounded-full border-0 px-3 py-1 font-bold text-white"
-                  : "clay-in rounded-full border-0 bg-muted px-3 py-1 font-bold text-muted-foreground"
-              }
+            <Link
+              to="/subscription"
+              title={pro ? "Gérer mon abonnement" : "Découvrir le plan Pro"}
+              className="shrink-0"
             >
-              {pro ? (
-                <>
-                  <Crown className="mr-1 size-3.5" /> Plan Pro
-                </>
-              ) : (
-                <>Plan {PLANS.FREE.label}</>
-              )}
-            </Badge>
+              <Badge
+                className={cn(
+                  "cursor-pointer rounded-full border-0 px-3 py-1 font-bold transition-transform hover:scale-105",
+                  pro
+                    ? "clay-teal text-white"
+                    : "clay-in bg-muted text-muted-foreground",
+                )}
+              >
+                {pro ? (
+                  <>
+                    <Crown className="mr-1 size-3.5" /> Plan Pro
+                  </>
+                ) : (
+                  <>Plan {PLANS.FREE.label}</>
+                )}
+              </Badge>
+            </Link>
             {!pro && (
               <Button asChild size="sm" className="clay-btn clay-teal hidden rounded-2xl font-bold text-white sm:inline-flex">
                 <Link to="/subscription">
@@ -61,6 +128,18 @@ export function DashboardShell({
                 </Link>
               </Button>
             )}
+            <NavLinkButton
+              to="/dashboard"
+              icon={<BookOpen className="size-4" />}
+              label="Mes menus"
+              alwaysLabel
+            />
+            <NavLinkButton
+              to="/apparence"
+              icon={<Palette className="size-4" />}
+              label="Apparence"
+              disabled
+            />
             {role === "admin" && (
               <Button
                 asChild
@@ -73,18 +152,11 @@ export function DashboardShell({
                 </Link>
               </Button>
             )}
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              className="clay-sm rounded-2xl border-0 bg-card font-bold"
-              title="Mes infos"
-            >
-              <Link to="/mes-infos">
-                <UserRound className="size-4" />
-                <span className="hidden md:inline">Mes infos</span>
-              </Link>
-            </Button>
+            <NavLinkButton
+              to="/mes-infos"
+              icon={<UserRound className="size-4" />}
+              label="Mes infos"
+            />
             <Button
               variant="ghost"
               size="icon"
