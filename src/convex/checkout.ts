@@ -17,11 +17,14 @@ function stripeClient() {
 }
 
 /**
- * Crée une session de paiement Stripe avec Managed Payments (merchant of
- * record : Stripe gère la TVA et la conformité). L'utilisateur et le cycle
- * sont passés en metadata pour que le webhook puisse attribuer le plan.
- * - cycle "monthly" : prix STRIPE_PRICE_MONTHLY (19 € HT/mois)
- * - cycle "annual"  : prix STRIPE_PRICE_ANNUAL  (190 € HT/an, cadeau 🎁)
+ * Crée une session de paiement Stripe standard (l'exploitant est le vendeur ;
+ * Stripe n'est que l'outil d'encaissement). L'utilisateur et le cycle sont
+ * passés en metadata pour que le webhook puisse attribuer le plan.
+ * - cycle "monthly" : prix STRIPE_PRICE_MONTHLY (19 €/mois)
+ * - cycle "annual"  : prix STRIPE_PRICE_ANNUAL  (190 €/an, cadeau 🎁)
+ *
+ * TVA : micro-entrepreneur non assujetti (art. 293 B du CGI) — les prix sont
+ * nets, aucune TVA n'est ajoutée (pas de merchant of record).
  */
 export const createCheckoutSession = action({
   args: { email: v.string(), cycle: v.optional(v.string()) },
@@ -51,8 +54,8 @@ export const createCheckoutSession = action({
       const session = await stripe.checkout.sessions.create({
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
-        // Merchant of record : TVA calculée/collectée/reversée par Stripe
-        managed_payments: { enabled: true },
+        // Vendeur = l'exploitant (micro-entrepreneur non assujetti) :
+        // pas de Managed Payments, le client paie exactement le prix affiché.
         customer_email: email,
         locale: "fr",
         success_url: `${siteUrl}/subscription?checkout=success`,

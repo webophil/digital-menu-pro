@@ -2,7 +2,8 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
- * Webhook de paiement Stripe (Managed Payments = merchant of record).
+ * Webhook de paiement Stripe (encaissement standard : l'exploitant est le
+ * vendeur, micro-entrepreneur non assujetti à la TVA).
  * Vérifie la signature Stripe avec STRIPE_WEBHOOK_SECRET, puis met à jour
  * le plan de l'abonné et enregistre la facture.
  *
@@ -158,8 +159,8 @@ async function activate(
     cycle,
     description:
       cycle === "annual"
-        ? "Abonnement V'la le Menu ! Pro — annuel (5 porte-cartes QR inclus)"
-        : "Abonnement V'la le Menu ! Pro (mensuel)",
+        ? "Abonnement V'la le Menu ! Pro — annuel (5 porte-cartes QR inclus) — TVA non applicable, art. 293 B du CGI"
+        : "Abonnement V'la le Menu ! Pro (mensuel) — TVA non applicable, art. 293 B du CGI",
   });
 }
 
