@@ -477,7 +477,7 @@ function Pricing() {
               <span className="text-lg font-bold text-white">
                 {annual ? " /an" : " /mois"}{" "}
                 <span className="align-middle text-xs font-semibold text-white/80">
-                  (hors TVA)
+                  (TVA ajoutée au paiement)
                 </span>
               </span>
             </p>

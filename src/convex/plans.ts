@@ -7,8 +7,10 @@ export const PRO_PRICE_CENTS = PRO_PRICE_EUR * 100;
 export const PRO_PRICE_ANNUAL_EUR = 190;
 /** Cadeau inclus avec l'abonnement annuel (porte-cartes QR, envoyés par colis). */
 export const PRO_ANNUAL_GIFT_QTY = 5;
-/** TVA française ajoutée au moment du paiement (prix affichés hors TVA). */
-export const VAT_RATE = 0.2;
+// TVA : l'exploitant est micro-entrepreneur non assujetti (art. 293 B du CGI).
+// Avec Stripe Managed Payments (merchant of record), c'est Stripe qui vend au
+// client final et collecte la TVA en son propre nom : le SaaS n'encaisse ni
+// ne facture aucune TVA. Les prix affichés sont les prix nets perçus.
 
 export type BillingCycle = "monthly" | "annual";
 

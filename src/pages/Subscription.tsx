@@ -316,7 +316,7 @@ export default function Subscription() {
                     <span className="text-sm font-bold text-white">
                       {annual ? " /an" : " /mois"}{" "}
                       <span className="align-middle text-xs font-semibold text-white/80">
-                        (hors TVA)
+                      (TVA ajoutée au paiement)
                       </span>
                     </span>
                   </>
@@ -393,7 +393,8 @@ export default function Subscription() {
         ) : invoices.length === 0 ? (
           <div className="clay-flat rounded-3xl bg-card p-8 text-center text-sm text-muted-foreground">
             Aucune facture pour l'instant. Vos factures d'abonnement Pro
-            apparaîtront ici (TVA incluse, payable par carte).
+            apparaîtront ici (montant réglé TTC par carte, TVA collectée par
+            Stripe en qualité de revendeur).
           </div>
         ) : (
           <div className="space-y-3">
