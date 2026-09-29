@@ -238,13 +238,30 @@ export default function PolitiqueConfidentialite() {
 
           <Section icon={<Cookie className="size-4 text-muted-foreground" />} title="Cookies et traceurs">
             <p>
+              <strong className="text-foreground">
+                Site sans cookies publicitaires — analytics respectueux de la
+                vie privée.
+              </strong>
+            </p>
+            <p>
               Le site n'utilise <strong className="text-foreground">aucun
-              cookie publicitaire, aucun traceur d'analyse d'audience ni aucun
-              réseau social tiers</strong>. Seuls des éléments techniques
-              strictement nécessaires au fonctionnement du service sont
-              utilisés (session de connexion sécurisée, sécurité CSRF) —
+              cookie publicitaire, aucun traceur d'analyse d'audience tiers ni
+              aucun réseau social</strong>, et ne stocke rien sur votre
+              appareil à des fins de mesure d'audience. Le suivi du
+              référencement s'appuie exclusivement sur la Google Search
+              Console, qui fonctionne par exploration des pages (le robot de
+              Google lit le site) et ne dépose <strong className="text-foreground">aucun cookie ni
+              traceur</strong> chez les visiteurs.
+            </p>
+            <p>
+              Les seuls éléments techniques utilisés sont strictement
+              nécessaires au fonctionnement du service (session de connexion
+              sécurisée, protection contre la falsification de requêtes) —
               exemptés de consentement au sens des recommandations de la CNIL.
-              C'est pourquoi aucun bandeau cookies ne s'affiche sur le site.
+              Les polices de caractères sont <strong className="text-foreground">hébergées
+              directement sur le site</strong> : aucune requête n'est envoyée
+              à un tiers lors de votre visite. C'est pourquoi aucun bandeau
+              cookies ne s'affiche sur le site.
             </p>
           </Section>
 

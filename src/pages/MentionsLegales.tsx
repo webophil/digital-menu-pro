@@ -195,12 +195,26 @@ export default function MentionsLegales() {
 
           <Section icon={<Server className="size-4 text-muted-foreground" />} title="Cookies & traceurs">
             <p>
-              Le site n'utilise pas de cookies publicitaires ni de traceurs
-              tiers. Seuls des éléments techniques strictement nécessaires au
-              fonctionnement du service (session de connexion, sécurité) sont
-              utilisés, conformément aux recommandations de la CNIL — aucun
-              bandeau de consentement n'est requis pour ces finalités
-              essentielles.
+              <strong className="text-foreground">
+                Site sans cookies publicitaires — analytics respectueux de la
+                vie privée.
+              </strong>{" "}
+              Le suivi du référencement s'appuie exclusivement sur la Google
+              Search Console (exploration des pages, sans dépôt de cookie ni
+              traceur chez les visiteurs). Les polices de caractères sont
+              hébergées directement sur le site : aucune requête tierce n'est
+              émise lors de la visite. Seuls des éléments techniques
+              strictement nécessaires au fonctionnement du service (session de
+              connexion, sécurité) sont utilisés, conformément aux
+              recommandations de la CNIL — aucun bandeau de consentement
+              n'est requis. Détails dans notre{" "}
+              <Link
+                to="/politique-confidentialite"
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                politique de confidentialité
+              </Link>
+              .
             </p>
           </Section>
 
