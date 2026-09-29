@@ -99,37 +99,36 @@ export default function MentionsLegales() {
 
           <Section icon={<Server className="size-4 text-muted-foreground" />} title="Hébergement du site">
             <p>
-              Le site est hébergé par des infrastructures cloud situées dans
-              l'Union européenne :
+              Le site est hébergé par :
             </p>
             <p>
-              <strong className="text-foreground">HETZNER Online GmbH</strong>
+              <strong className="text-foreground">Vercel Inc.</strong>
               <br />
-              Finnische Straße 2, 90463 Nuremberg, Allemagne
+              440 N Barranca Ave #4133, Covina, CA 91723, États-Unis
               <br />
               <a
-                href="https://www.hetzner.com"
+                href="https://vercel.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold text-primary underline underline-offset-2"
               >
-                hetzner.com
+                vercel.com
               </a>
             </p>
             <p>
-              <strong className="text-foreground">Amazon Web Services EMEA SARL</strong>{" "}
-              (services associés : e-mail transactionnel, fonctions de calcul)
-              <br />
-              38 Avenue John F. Kennedy, L-1855 Luxembourg
-              <br />
-              <a
-                href="https://aws.amazon.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary underline underline-offset-2"
-              >
-                aws.amazon.com
-              </a>
+              Le site est servi depuis le réseau edge mondial de Vercel,
+              incluant des points de présence en Europe (dont Paris). Vercel
+              agit en qualité d'hébergeur au sens de la LCEN et a signé un
+              accord de traitement des données (DPA) incluant les clauses
+              contractuelles types approuvées par la Commission européenne
+              pour les transferts de données hors Union européenne.
+            </p>
+            <p>
+              L'envoi des e-mails transactionnels (codes de connexion,
+              notifications de contact) est assuré par{" "}
+              <strong className="text-foreground">Resend, Inc.</strong>
+              (États-Unis), dont l'infrastructure d'envoi s'appuie sur Amazon
+              Web Services en Irlande (région eu-west-1, Union européenne).
             </p>
           </Section>
 
