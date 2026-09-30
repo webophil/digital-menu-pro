@@ -324,6 +324,15 @@ export default function Dashboard() {
           >
             <Eye className="size-4" /> Voir le menu client
           </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="clay-sm rounded-2xl border-0 bg-card font-bold"
+          >
+            <Link to="/qr">
+              <QrCode className="size-4" /> QR Code
+            </Link>
+          </Button>
           <NewMenuDialog restaurantId={restaurant!._id} />
         </>
       }
@@ -403,11 +412,6 @@ export default function Dashboard() {
                   <Button asChild className="clay-btn clay-teal h-9 flex-1 rounded-2xl text-sm font-bold text-white">
                     <Link to={`/menu/${m._id}`}>
                       <Pencil className="size-3.5" /> Éditer
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="clay-sm h-9 flex-1 rounded-2xl border-0 bg-card text-sm font-bold">
-                    <Link to={`/qr/${m._id}`}>
-                      <QrCode className="size-3.5" /> QR code
                     </Link>
                   </Button>
                   <AlertDialog>

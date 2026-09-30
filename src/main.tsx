@@ -149,7 +149,7 @@ createRoot(document.getElementById("root")!).render(
                 }
               />
               <Route
-                path="/qr/:menuId"
+                path="/qr"
                 element={
                   <RequireAuth>
                     <QrPage />

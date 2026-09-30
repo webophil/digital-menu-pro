@@ -1,11 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/DashboardShell";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, Loader2, Printer } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import QRCode from "qrcode";
 
@@ -16,17 +15,15 @@ const QR_COLORS = [
   { name: "Classic", fg: "#1f2937", bg: "#ffffff" },
 ];
 
+/**
+ * QR code unique de l'établissement : il pointe vers la page publique
+ * /m/{slug}, qui affiche automatiquement les menus actifs sous forme
+ * d'onglets. Un seul QR à imprimer, quel que soit le nombre de menus.
+ */
 export default function QrPage() {
-  const { menuId } = useParams<{ menuId: string }>();
   const navigate = useNavigate();
-  const menu = useQuery(
-    api.restaurants.getMenu,
-    menuId ? { menuId: menuId as Id<"menus"> } : "skip",
-  );
-  const restaurant = useQuery(
-    api.restaurants.getRestaurant,
-    menu?.restaurantId ? { id: menu.restaurantId } : "skip",
-  );
+  const profile = useQuery(api.account.getMyProfile);
+  const restaurant = profile?.restaurant ?? null;
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [colorIdx, setColorIdx] = useState(0);
 
@@ -56,17 +53,17 @@ export default function QrPage() {
     };
   }, [publicUrl, colorIdx]);
 
-  if (menu === undefined || restaurant === undefined) {
+  if (profile === undefined) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </main>
     );
   }
-  if (!menu || !restaurant) {
+  if (!restaurant) {
     return (
-      <DashboardShell title="Menu introuvable">
-        <p>Ce menu n'existe pas ou ne vous appartient pas.</p>
+      <DashboardShell title="Aucun établissement">
+        <p>Créez d'abord votre établissement pour obtenir votre QR code.</p>
       </DashboardShell>
     );
   }
@@ -75,8 +72,8 @@ export default function QrPage() {
 
   return (
     <DashboardShell
-      title="QR code du menu"
-      subtitle="Imprimez-le et affichez-le sur vos tables"
+      title="QR code de votre établissement"
+      subtitle="Un seul QR code pour tous vos menus — il affiche vos menus actifs au client"
       actions={
         <>
           <Button
@@ -103,14 +100,14 @@ export default function QrPage() {
             style={{ background: color.bg }}
           >
             <p className="text-xs font-bold tracking-widest text-neutral-600 uppercase">
-              {restaurant.name}
+              {restaurant.city ? `${restaurant.name} · ${restaurant.city}` : restaurant.name}
             </p>
             <h2 className="mt-1 mb-5 font-[Baloo_2] text-2xl font-extrabold text-neutral-800">
-              {menu.name}
+              Notre carte
             </h2>
             <img
               src={qrDataUrl}
-              alt={`QR code du menu ${menu.name}`}
+              alt={`QR code de l'établissement ${restaurant.name}`}
               className="aspect-square w-64 max-w-full rounded-2xl"
             />
             <p className="mt-5 text-sm font-semibold text-neutral-700">
@@ -119,11 +116,6 @@ export default function QrPage() {
             <p className="mt-1 text-xs text-neutral-500">
               Photos · Allergènes · FR / EN / ES / DE
             </p>
-            {restaurant.city && (
-              <p className="mt-3 text-xs font-bold tracking-wide text-neutral-600 uppercase">
-                {restaurant.city}
-              </p>
-            )}
           </div>
         </div>
 
@@ -154,7 +146,7 @@ export default function QrPage() {
           </div>
 
           <div className="clay-flat rounded-3xl bg-card p-5">
-            <p className="mb-2 text-sm font-bold">Lien du menu</p>
+            <p className="mb-2 text-sm font-bold">Lien de votre carte</p>
             <p className="clay-in rounded-2xl bg-muted p-3 text-xs break-all text-muted-foreground">
               {publicUrl}
             </p>
@@ -169,8 +161,17 @@ export default function QrPage() {
           </div>
 
           <div className="clay-butter clay-flat rounded-3xl p-5 text-sm">
-            <p className="font-bold">Conseil d'impression 🖨️</p>
+            <p className="font-bold">Bon à savoir 💡</p>
             <p className="mt-1 text-[oklch(0.4_0.07_70)]">
+              Ce QR code ne change jamais : si vous masquez un menu ou en
+              créez un nouveau, il reste valable — la page affiche toujours
+              vos menus actifs.
+            </p>
+          </div>
+
+          <div className="clay-flat rounded-3xl bg-card p-5 text-sm">
+            <p className="font-bold">Conseil d'impression 🖨️</p>
+            <p className="mt-1 text-muted-foreground">
               Format carte de table (A6) ou tenture (A5). Gardez le QR à au
               moins 2 × 2 cm pour un scan facile.
             </p>
