@@ -1,3 +1,14 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DashboardShell } from "@/components/DashboardShell";
+import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import { isProSubscription } from "@/convex/plans";
 import { cn } from "@/lib/utils";
@@ -23,11 +35,15 @@ import {
   Phone,
   Receipt,
   Save,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
+
+/** Phrase exacte à recopier pour valider la suppression du compte. */
+const CONFIRM_DELETE_PHRASE = "SUPPRIMEZ MON COMPTE";
 
 function formatSiret(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 14);
@@ -70,9 +86,12 @@ export default function MesInfos() {
   const profile = useQuery(api.account.getMyProfile);
   const sub = useQuery(api.billing.getMySubscription);
   const pro = isProSubscription(sub);
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   const updateEmail = useMutation(api.account.updateMyEmail);
   const updateEstablishment = useMutation(api.account.updateEstablishment);
   const cancelSubscription = useAction(api.checkout.cancelSubscription);
+  const deleteMyAccount = useMutation(api.account.deleteMyAccount);
 
   const [email, setEmail] = useState("");
   const [form, setForm] = useState<RestaurantForm>(emptyForm);
@@ -80,6 +99,9 @@ export default function MesInfos() {
   const [busyEmail, setBusyEmail] = useState(false);
   const [busyForm, setBusyForm] = useState(false);
   const [busyCancel, setBusyCancel] = useState(false);
+  const [confirmPhrase, setConfirmPhrase] = useState("");
+  const [busyDelete, setBusyDelete] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState(false);
 
   const restaurant = profile?.restaurant;
 
@@ -169,6 +191,24 @@ export default function MesInfos() {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
       setBusyCancel(false);
+    }
+  };
+
+  const doDeleteAccount = async () => {
+    if (confirmPhrase !== CONFIRM_DELETE_PHRASE) return;
+    setBusyDelete(true);
+    try {
+      await deleteMyAccount({});
+      toast.success("Votre compte a été supprimé. Merci et à bientôt !");
+      try {
+        await signOut();
+      } catch {
+        // session déjà supprimée côté serveur : ignorer
+      }
+      navigate("/");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+      setBusyDelete(false);
     }
   };
 
@@ -422,6 +462,93 @@ export default function MesInfos() {
                 Enregistrer les informations
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* ---- Danger zone : suppression du compte ---- */}
+        <Card className="clay-card clay-flat rounded-3xl border-0 lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-[Baloo_2] text-xl text-destructive">
+              <span className="flex size-9 items-center justify-center rounded-2xl bg-destructive/10">
+                <Trash2 className="size-4 text-destructive" />
+              </span>
+              Supprimer mon compte
+            </CardTitle>
+            <CardDescription>
+              Action irréversible : votre établissement, vos menus, vos plats,
+              vos photos et vos données personnelles seront définitivement
+              supprimés (RGPD). Les factures restent archivées 10 ans
+              (obligation comptable).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog
+              open={dangerOpen}
+              onOpenChange={(open) => {
+                setDangerOpen(open);
+                if (!open) setConfirmPhrase("");
+              }}
+            >
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="rounded-2xl border-0 bg-destructive/10 font-bold text-destructive hover:bg-destructive/20"
+                >
+                  <Trash2 className="size-4" /> Supprimer définitivement mon compte
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="clay-card clay-flat rounded-3xl border-0">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-[Baloo_2]">
+                    Supprimer définitivement votre compte ?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2">
+                      <p>
+                        Cette action est <strong>irréversible</strong> :
+                        établissement, menus, catégories, plats, photos et
+                        données personnelles seront supprimés immédiatement.
+                      </p>
+                      <p>
+                        Pour confirmer, recopiez exactement :{" "}
+                        <strong className="text-destructive">
+                          SUPPRIMEZ MON COMPTE
+                        </strong>
+                      </p>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input
+                  className="clay-in h-11 rounded-2xl border-0 bg-muted"
+                  placeholder="SUPPRIMEZ MON COMPTE"
+                  value={confirmPhrase}
+                  onChange={(e) => setConfirmPhrase(e.target.value)}
+                  autoComplete="off"
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-2xl border-0 bg-muted font-bold">
+                    Annuler
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="h-10 rounded-2xl bg-destructive font-bold text-white hover:bg-destructive/90"
+                    disabled={
+                      confirmPhrase !== CONFIRM_DELETE_PHRASE || busyDelete
+                    }
+                    onClick={(e) => {
+                      e.preventDefault(); // la fermeture est gérée côté action
+                      doDeleteAccount();
+                    }}
+                  >
+                    {busyDelete ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )}
+                    Supprimer mon compte
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       </div>

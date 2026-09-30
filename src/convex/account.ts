@@ -72,6 +72,101 @@ export const updateMyEmail = mutation({
   },
 });
 
+/**
+ * Suppression définitive du compte (RGPD, art. 17 — droit à l'effacement) :
+ * - établissement, menus, catégories, plats et photos : supprimés
+ * - abonnement et colis cadeau : supprimés
+ * - sessions et moyens de connexion : supprimés (plus aucune connexion possible)
+ * - factures : conservées 10 ans (obligation comptable, voir politique de
+ *   confidentialité) ; la fiche utilisateur est anonymisée (email retiré).
+ */
+export const deleteMyAccount = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (sub && sub.plan === "pro" && sub.status !== "cancelled") {
+      throw new Error(
+        sub.source === "admin"
+          ? "Un statut Pro vous a été offert. Contactez le support avant de supprimer votre compte."
+          : "Votre abonnement Pro est actif. Annulez-le depuis « Mes infos » avant de supprimer votre compte.",
+      );
+    }
+
+    const restaurants = await ctx.db
+      .query("restaurants")
+      .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+      .collect();
+
+    for (const rest of restaurants) {
+      const menus = await ctx.db
+        .query("menus")
+        .withIndex("by_restaurant", (q) => q.eq("restaurantId", rest._id))
+        .collect();
+      for (const menu of menus) {
+        const cats = await ctx.db
+          .query("categories")
+          .withIndex("by_menu", (q) => q.eq("menuId", menu._id))
+          .collect();
+        for (const cat of cats) {
+          const dishes = await ctx.db
+            .query("dishes")
+            .withIndex("by_category", (q) => q.eq("categoryId", cat._id))
+            .collect();
+          for (const d of dishes) {
+            await ctx.db.delete(d._id);
+            for (const photoId of d.photos ?? []) {
+              try {
+                await ctx.storage.delete(photoId);
+              } catch {
+                // déjà supprimée : ignorer
+              }
+            }
+          }
+          await ctx.db.delete(cat._id);
+        }
+        await ctx.db.delete(menu._id);
+      }
+      await ctx.db.delete(rest._id);
+    }
+
+    // Colis cadeau éventuel
+    const shipments = await ctx.db
+      .query("giftShipments")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const s of shipments) await ctx.db.delete(s._id);
+
+    // Abonnement (déjà bloqué si Pro actif, voir plus haut)
+    if (sub) await ctx.db.delete(sub._id);
+
+    // Sessions : déconnexion immédiate sur tous les appareils
+    const sessions = await ctx.db
+      .query("authSessions")
+      .withIndex("userId", (q) => q.eq("userId", userId))
+      .collect();
+    for (const s of sessions) await ctx.db.delete(s._id);
+
+    // Moyens de connexion : plus aucun login possible
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .collect();
+    for (const a of accounts) await ctx.db.delete(a._id);
+
+    // Factures conservées (obligation comptable) — la fiche utilisateur est
+    // anonymisée : l'email (donnée identifiante) est effacé.
+    await ctx.db.patch(userId, { email: undefined, name: "Compte supprimé" });
+
+    return { ok: true };
+  },
+});
+
 /** Met à jour le nom de l'établissement (identité affichée aux clients). */
 export const updateEstablishment = mutation({
   args: {
