@@ -301,7 +301,7 @@ export default function Dashboard() {
   return (
     <DashboardShell
       title={restaurant!.name}
-      subtitle={`${establishmentTypeLabel(restaurant!.establishmentType)}${restaurant!.city ? ` · ${restaurant!.city}` : ""} · Lien public : /m/${restaurant!.slug}`}
+      subtitle={`${establishmentTypeLabel(restaurant!.establishmentType)}${restaurant!.city ? ` · ${restaurant!.city}` : ""}`}
       actions={
         <>
           <Button
