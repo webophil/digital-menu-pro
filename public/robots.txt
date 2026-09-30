@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /menu/
+Disallow: /qr
+Disallow: /mes-infos
+Disallow: /subscription
+Disallow: /admin
+Disallow: /auth
+
+Sitemap: https://vlalemenu.fr/sitemap.xml
