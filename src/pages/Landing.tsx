@@ -99,9 +99,9 @@ function Hero() {
           </span>
         </h1>
         <p className="max-w-xl text-lg text-muted-foreground">
-          Vos plats, vos photos, vos descriptifs, les 14 allergènes réglementaires, traduction
-          automatique en anglais, espagnol et allemand, et un QR code imprimable
-          pour vos tables. Pensé pour les restaurants, brasseries et bistros qui veulent efficace et simple.
+          Vos plats, vos photos, vos descriptifs, les allergènes réglementaires, traductions
+          automatiques, apparence 100 % personnalisable et un QR code imprimable
+          pour vos tables. Pensé pour les restaurants, brasseries et bistros qui veulent allier efficacité et simplicité.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button
