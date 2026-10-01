@@ -321,7 +321,7 @@ function Features() {
       icon: <QrCode className="size-6 text-white" />,
       bg: "clay-berry",
       title: "QR code imprimable",
-      text: "Téléchargez le QR code de chaque menu et affichez-le sur vos tables, votre vitrine ou votre comptoir.",
+      text: "Téléchargez le QR code de votre établissement, imprimez-le et affichez-le sur vos tables, votre vitrine ou votre comptoir.",
     },
     {
       icon: <UtensilsCrossed className="size-6 text-white" />,
