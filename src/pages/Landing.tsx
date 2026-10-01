@@ -295,8 +295,8 @@ function Hero() {
               Voir un menu de démonstration
             </p>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Sortez votre téléphone et scannez ce QR code : le menu client s'ouvre
-              instantanément, comme dans un vrai restaurant. Sans installation, sans inscription.
+              Scannez ce QR code avec votre téléphone : le menu client s'ouvre
+              instantanément, comme dans un vrai restaurant. Menu avec traductions et options de personnalisation PRO.
             </p>
             <span className="clay-sm mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-bold">
               <ScanLine className="size-3.5 text-primary" />
