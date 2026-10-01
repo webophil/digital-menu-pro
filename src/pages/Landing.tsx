@@ -255,6 +255,16 @@ function Hero() {
         </div>
             </motion.div>
           )}
+
+          {/* Légende flottante « Auto-traduit », ancrée sur la zone des photos */}
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 0.6 }}
+            className={`clay absolute z-30 flex items-center gap-2 rounded-3xl bg-card px-4 py-2.5 ${scanImgOk ? "-bottom-6 right-0" : "-bottom-4 -left-4"}`}
+          >
+            <Languages className="size-4 text-primary" />
+            <span className="text-sm font-bold">Auto-traduit</span>
+          </motion.div>
         </div>
 
         {!scanImgOk && (
@@ -266,13 +276,33 @@ function Hero() {
             <QrCode className="size-8 text-primary" />
           </motion.div>
         )}
+        {/* Carte démo : QR code à scanner pour voir un menu de démonstration */}
         <motion.div
-          animate={{ y: [0, 10, 0] }}
-          transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 0.6 }}
-          className={`clay absolute z-30 flex items-center gap-2 rounded-3xl bg-card px-4 py-2.5 ${scanImgOk ? "-bottom-6 right-0" : "-bottom-4 -left-4"}`}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="clay mt-11 flex items-center gap-4 rounded-[2rem] bg-card p-4 sm:gap-5 sm:p-5"
         >
-          <Languages className="size-4 text-primary" />
-          <span className="text-sm font-bold">Auto-traduit</span>
+          <div className="clay-in shrink-0 rounded-2xl bg-muted p-2.5">
+            <img
+              src="/qrcode-test.webp"
+              alt="QR code donnant accès à un menu de démonstration"
+              className="size-24 rounded-xl bg-white object-contain sm:size-32"
+            />
+          </div>
+          <div className="min-w-0">
+            <p className="font-[Baloo_2] text-lg font-extrabold sm:text-xl">
+              Voir un menu de démonstration
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Sortez votre téléphone et scannez ce QR code : le menu client s'ouvre
+              instantanément, comme dans un vrai restaurant. Sans installation, sans inscription.
+            </p>
+            <span className="clay-sm mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-bold">
+              <ScanLine className="size-3.5 text-primary" />
+              Scannez pour essayer
+            </span>
+          </div>
         </motion.div>
       </motion.div>
     </section>
