@@ -31,7 +31,7 @@ export const PLANS = {
   },
   PRO: {
     id: "pro",
-    label: "Pro",
+    label: "Plan PRO",
     maxMenus: Infinity,
     translation: true,
     features: [
