@@ -114,7 +114,7 @@ export function DashboardShell({
               to="/apparence"
               icon={<Palette className="size-4" />}
               label="Apparence"
-              disabled
+              alwaysLabel
             />
             {role === "admin" && (
               <Button

@@ -30,6 +30,10 @@ export function PublicMenuModal({
     api.publicMenu.getPublicMenus,
     open ? { restaurantId: restaurant._id } : "skip",
   ) as Doc<"menus">[] | undefined | null;
+  const appearance = useQuery(
+    api.appearance.getPublicAppearance,
+    open ? { restaurantId: restaurant._id } : "skip",
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,6 +43,7 @@ export function PublicMenuModal({
           <MenuPreview
             restaurant={restaurant}
             menus={menus ?? undefined}
+            appearance={appearance}
             className="flex w-full flex-col"
           />
         </div>

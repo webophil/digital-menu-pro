@@ -11,12 +11,14 @@ import {
   ChevronDown,
   Languages,
   Package,
+  Palette,
   QrCode,
   ScanLine,
   Smartphone,
   Sparkles,
   UtensilsCrossed,
   X,
+  Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -292,26 +294,38 @@ function Features() {
       text: "Signalez les allergènes (France - règlement INCO 1169/2011) : ils s'affichent clairement sur le menu client.",
     },
     {
-      icon: <Languages className="size-6 text-white" />,
+      icon: <Palette className="size-6 text-white" />,
       bg: "clay-peach",
+      title: "Une apparence à votre image",
+      text: "Couleurs, polices, fioritures, textures : personnalisez chaque détail du menu client. 8 ambiances prêtes à l'emploi ou le vôtre, en aperçu en direct.",
+    },
+    {
+      icon: <Languages className="size-6 text-white" />,
+      bg: "clay-butter",
       title: "Traduction automatique",
       text: "Du français vers l'anglais, l'espagnol et l'allemand (+ à venir) en un clic. Vos plats restent appétissants dans chaque langue.",
     },
     {
-      icon: <Smartphone className="size-6 text-white" />,
+      icon: <Zap className="size-6 text-white" />,
       bg: "clay-butter",
+      title: "Toujours à jour",
+      text: "Un prix change, un plat arrive en rupture ? Modifiez et le menu public est mis à jour en temps réel, sans aucune manipulation technique.",
+    },
+    {
+      icon: <Smartphone className="size-6 text-white" />,
+      bg: "clay-teal",
       title: "Menu client mobile",
       text: "Une page élégante, rapide et responsive, au nom de votre établissement. Aucune app à installer, juste à scanner.",
     },
     {
       icon: <QrCode className="size-6 text-white" />,
-      bg: "clay-teal",
+      bg: "clay-berry",
       title: "QR code imprimable",
       text: "Téléchargez le QR code de chaque menu et affichez-le sur vos tables, votre vitrine ou votre comptoir.",
     },
     {
       icon: <UtensilsCrossed className="size-6 text-white" />,
-      bg: "clay-berry",
+      bg: "clay-peach",
       title: "Catégories & types de menu",
       text: "Carte, menu du jour, carte du soir, menu enfants… Organisez tout par catégories dans des onglets cliquables.",
     },

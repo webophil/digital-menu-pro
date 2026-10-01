@@ -1,6 +1,20 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { Infer, v } from "convex/values";
+import {
+  CATEGORY_STYLE_VALUES,
+  CARD_STYLE_VALUES,
+  DIVIDER_VALUES,
+  HEADER_STYLE_VALUES,
+  HEADING_CASE_VALUES,
+  HEADING_FONT_VALUES,
+  BODY_FONT_VALUES,
+  MODE_VALUES,
+  PHOTO_SHAPE_VALUES,
+  PRICE_STYLE_VALUES,
+  TEXTURE_VALUES,
+  oneOf,
+} from "../lib/theme";
 
 // default user roles. can add / remove based on the project as needed
 export const ROLES = {
@@ -142,6 +156,29 @@ const schema = defineSchema(
       message: v.string(),
       createdAt: v.number(),
     }).index("by_created_at", ["createdAt"]),
+
+    // Apparence du menu client (thème : couleurs, polices, décor) —
+    // page /apparence, rendu sur /m/:slug
+    appearances: defineTable({
+      restaurantId: v.id("restaurants"),
+      mode: oneOf(MODE_VALUES), // "light" | "dark"
+      accent: v.string(), // #RRGGBB — couleur principale
+      accent2: v.string(), // fin du dégradé
+      background: v.string(),
+      surface: v.string(), // cartes / panneaux
+      text: v.string(),
+      headingFont: oneOf(HEADING_FONT_VALUES),
+      bodyFont: oneOf(BODY_FONT_VALUES),
+      headingCase: oneOf(HEADING_CASE_VALUES),
+      divider: oneOf(DIVIDER_VALUES), // fioritures entre les blocs
+      categoryStyle: oneOf(CATEGORY_STYLE_VALUES),
+      cardStyle: oneOf(CARD_STYLE_VALUES),
+      priceStyle: oneOf(PRICE_STYLE_VALUES),
+      headerStyle: oneOf(HEADER_STYLE_VALUES),
+      texture: oneOf(TEXTURE_VALUES),
+      photoShape: oneOf(PHOTO_SHAPE_VALUES),
+      updatedAt: v.number(),
+    }).index("by_restaurant", ["restaurantId"]),
 
     // Cadeau abonnement annuel : 5 porte-cartes QR à expédier par colis
     giftShipments: defineTable({

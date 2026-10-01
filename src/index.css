@@ -210,4 +210,66 @@
   .text-clay-deep {
     color: var(--clay-teal-deep);
   }
+
+  /* ——— Thème du menu client (page « Apparence ») ——— */
+  /* Titres du menu : famille, graisse et casse pilotés par l'apparence */
+  .font-head {
+    font-family: var(--m-font-head, "Baloo 2");
+    font-weight: var(--m-head-weight, 800);
+    text-transform: var(--m-head-transform, none);
+  }
+  /* Texte secondaire du menu (descriptions, mentions) */
+  .m-muted {
+    color: var(--m-muted, inherit);
+  }
+  /* Élément actif teinté (onglets de menu, choix de langue) */
+  .m-accent {
+    background: var(
+      --m-accent-grad,
+      linear-gradient(145deg, oklch(0.78 0.13 195), oklch(0.66 0.13 210))
+    );
+    color: var(--m-on-accent, #fff);
+  }
+  /* Pastilles discrètes (allergènes, options inactives) */
+  .m-chip {
+    background: var(--m-chip-bg, oklch(0.945 0.015 250));
+    color: var(--m-muted, oklch(0.52 0.04 255));
+  }
+  /* Styles de carte des catégories */
+  .m-card-flat {
+    box-shadow:
+      0 1px 3px rgba(15, 23, 42, 0.05),
+      0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+  .m-card-outline {
+    border: 1.5px solid var(--m-border, rgba(15, 23, 42, 0.14));
+    box-shadow: none;
+  }
+  .m-card-plain {
+    box-shadow: none;
+  }
+  /* Titre de catégorie encadré (double filet) */
+  .m-frame {
+    border: 3px double var(--m-border, rgba(15, 23, 42, 0.35));
+  }
+  /* Nuancier natif de la page Apparence : swatch arrondi, sans bordure */
+  .color-swatch {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .color-swatch::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  .color-swatch::-webkit-color-swatch {
+    border: none;
+    border-radius: 0.75rem;
+  }
+  .color-swatch::-moz-color-swatch {
+    border: none;
+    border-radius: 0.75rem;
+  }
 }
