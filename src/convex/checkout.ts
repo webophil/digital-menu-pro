@@ -21,7 +21,7 @@ function stripeClient() {
  * Stripe n'est que l'outil d'encaissement). L'utilisateur et le cycle sont
  * passés en metadata pour que le webhook puisse attribuer le plan.
  * - cycle "monthly" : prix STRIPE_PRICE_MONTHLY (19 €/mois)
- * - cycle "annual"  : prix STRIPE_PRICE_ANNUAL  (190 €/an, cadeau 🎁)
+ * - cycle "annual"  : prix STRIPE_PRICE_ANNUAL  (190 €/an, 2 mois offerts)
  *
  * TVA : micro-entrepreneur non assujetti (art. 293 B du CGI) — les prix sont
  * nets, aucune TVA n'est ajoutée (pas de merchant of record).

@@ -25,7 +25,6 @@ import { Link, useNavigate } from "react-router";
 import { ALLERGENS, cn } from "@/lib/utils";
 import {
   PLANS,
-  PRO_ANNUAL_GIFT_QTY,
   PRO_PRICE_ANNUAL_EUR,
   PRO_PRICE_EUR,
 } from "@/convex/plans";
@@ -526,18 +525,6 @@ function Pricing() {
                 </span>
               </span>
             </p>
-            {annual && (
-              <div className="clay-flat flex items-start gap-3 rounded-2xl bg-white p-3.5 text-sm text-clay-deep">
-                <span className="clay-teal flex size-8 shrink-0 items-center justify-center rounded-xl text-lg">
-                  🎁
-                </span>
-                <span>
-                  <strong>Cadeau de bienvenue :</strong> {PRO_ANNUAL_GIFT_QTY} porte-cartes
-                  QR à l'effigie de votre restaurant, expédiés par colis sous 2
-                  semaines après le paiement.
-                </span>
-              </div>
-            )}
             <ul className="flex-1 space-y-2.5 text-sm text-white">
               {PLANS.PRO.features.map((f) => (
                 <li key={f} className="flex items-start gap-2">

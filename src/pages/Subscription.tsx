@@ -1,7 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -16,7 +14,6 @@ import {
   isProPlan,
   isProSubscription,
   PLANS,
-  PRO_ANNUAL_GIFT_QTY,
   PRO_PRICE_ANNUAL_EUR,
   PRO_PRICE_EUR,
 } from "@/convex/plans";
@@ -27,8 +24,6 @@ import {
   Download,
   Languages,
   Loader2,
-  MapPin,
-  Package,
   Receipt,
   X,
 } from "lucide-react";
@@ -43,103 +38,6 @@ function formatDate(ts: number) {
     month: "long",
     year: "numeric",
   });
-}
-
-/** Carte du colis cadeau (abonnement annuel) avec saisie d'adresse. */
-function GiftShipmentCard() {
-  const shipment = useQuery(api.shipments.getMyShipment);
-  const setAddress = useMutation(api.shipments.setAddress);
-  const [form, setForm] = useState({
-    fullName: "",
-    addressLine1: "",
-    addressLine2: "",
-    postalCode: "",
-    city: "",
-    phone: "",
-  });
-  const [busy, setBusy] = useState(false);
-
-  if (shipment === undefined) return null;
-  if (shipment === null) return null;
-
-  const editable = shipment.status !== "shipped";
-  const filled = form.fullName.trim() && form.addressLine1.trim() && form.postalCode.trim() && form.city.trim();
-
-  return (
-    <Card className="clay-butter clay-flat mb-8 rounded-3xl border-0">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-[Baloo_2] text-xl text-[oklch(0.38_0.08_70)]">
-          <Package className="size-5" /> Votre cadeau : {shipment.quantity} porte-cartes QR
-        </CardTitle>
-        <CardDescription className="text-[oklch(0.42_0.07_70)]">
-          {shipment.status === "shipped" ? (
-            <>
-              Colis expédié{shipment.shippedAt ? ` le ${formatDate(shipment.shippedAt)}` : ""}
-              {shipment.trackingNumber ? ` — n° de suivi : ${shipment.trackingNumber}` : ""}.
-            </>
-          ) : shipment.status === "ready" ? (
-            <>Adresse enregistrée ! Vos porte-cartes seront expédiés sous 2 semaines.</>
-          ) : (
-            <>Merci de nous indiquer l'adresse d'expédition du colis.</>
-          )}
-        </CardDescription>
-      </CardHeader>
-      {editable && shipment.status === "awaiting_address" && (
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label className="text-[oklch(0.38_0.08_70)]">Nom complet</Label>
-            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Marie Dupont" />
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-[oklch(0.38_0.08_70)]">Téléphone (transporteur)</Label>
-            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="06 12 34 56 78" />
-          </div>
-          <div className="grid gap-1.5 sm:col-span-2">
-            <Label className="text-[oklch(0.38_0.08_70)]">Adresse</Label>
-            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} placeholder="12 rue des Lilas" />
-          </div>
-          <div className="grid gap-1.5 sm:col-span-2">
-            <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} placeholder="Complément (bâtiment, étage…) — optionnel" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:col-span-2 sm:grid-cols-[1fr_2fr]">
-            <div className="grid gap-1.5">
-              <Label className="text-[oklch(0.38_0.08_70)]">Code postal</Label>
-              <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} placeholder="75011" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-[oklch(0.38_0.08_70)]">Ville</Label>
-              <Input className="clay-in h-10 rounded-2xl border-0 bg-white/70" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Paris" />
-            </div>
-          </div>
-          <Button
-            className="clay-btn clay-teal mt-1 h-11 rounded-2xl font-bold text-white sm:col-span-2"
-            disabled={busy || !filled}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await setAddress({
-                  fullName: form.fullName,
-                  addressLine1: form.addressLine1,
-                  addressLine2: form.addressLine2 || undefined,
-                  postalCode: form.postalCode,
-                  city: form.city,
-                  phone: form.phone || undefined,
-                });
-                toast.success("Adresse enregistrée ! Colis prêt à partir.");
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Erreur");
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <MapPin className="size-4" />}
-            Enregistrer mon adresse
-          </Button>
-        </CardContent>
-      )}
-    </Card>
-  );
 }
 
 export default function Subscription() {
@@ -191,7 +89,6 @@ export default function Subscription() {
       title="Abonnement"
       subtitle="Gérez votre plan et retrouvez vos factures"
     >
-      {pro && <GiftShipmentCard />}
       {checkoutStatus === "success" && (
         <div className="clay-teal clay-flat mb-6 flex items-center gap-3 rounded-3xl p-4 text-white">
           <Check className="size-5 shrink-0" />
@@ -334,18 +231,6 @@ export default function Subscription() {
                 </p>
               )}
             </div>
-            {!pro && annual && (
-              <div className="clay-flat flex items-start gap-3 rounded-2xl bg-white p-3.5 text-sm text-clay-deep">
-                <span className="clay-teal flex size-8 shrink-0 items-center justify-center rounded-xl text-lg">
-                  🎁
-                </span>
-                <span>
-                  <strong>Cadeau :</strong> {PRO_ANNUAL_GIFT_QTY} porte-cartes QR à
-                  l'effigie de votre restaurant, expédiés sous 2 semaines après
-                  paiement.
-                </span>
-              </div>
-            )}
             <ul className="flex-1 space-y-2 text-sm text-white">
               {PLANS.PRO.features.map((f) => (
                 <li key={f} className="flex items-start gap-2">

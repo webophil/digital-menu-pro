@@ -28,11 +28,9 @@ import {
   Crown,
   Infinity as InfinityIcon,
   Loader2,
-  Package,
   Search,
   ShieldCheck,
   Store,
-  Truck,
   Users,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -249,130 +247,6 @@ function AdminSetup({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-/** Suivi des colis cadeaux (5 porte-cartes QR) des abonnements annuels. */
-function GiftShipments() {
-  const shipments = useQuery(api.admin.listGiftShipments);
-  const markShipped = useMutation(api.admin.markShipmentShipped);
-  const [tracking, setTracking] = useState<Record<string, string>>({});
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  return (
-    <section className="mt-12">
-      <h2 className="mb-4 flex items-center gap-2 font-[Baloo_2] text-xl font-extrabold">
-        <Package className="size-5 text-primary" /> Colis cadeaux — abonnements
-        annuels
-      </h2>
-      {shipments === undefined ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : shipments.length === 0 ? (
-        <Card className="clay-card clay-flat rounded-3xl border-0">
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            Aucun colis cadeau pour l'instant. Un colis (5 porte-cartes QR) est
-            créé dès qu'un restaurateur souscrit l'abonnement annuel.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {shipments.map((s) => (
-            <Card key={s.shipmentId} className="clay-card clay-flat rounded-3xl border-0 py-4">
-              <CardContent className="flex flex-wrap items-start gap-4 px-5">
-                <div className="clay-in flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-                  <Package className="size-5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 font-bold">
-                    {s.restaurantName ?? "Établissement inconnu"}
-                    <Badge
-                      className={cn(
-                        "rounded-full border-0 px-2.5 py-0.5 text-xs font-bold",
-                        s.status === "shipped"
-                          ? "clay-in bg-muted text-muted-foreground"
-                          : s.status === "ready"
-                            ? "clay-teal text-white"
-                            : "clay-butter text-[oklch(0.4_0.08_70)]",
-                      )}
-                    >
-                      {s.status === "shipped"
-                        ? "Expédié"
-                        : s.status === "ready"
-                          ? "À expédier"
-                          : "Adresse manquante"}
-                    </Badge>
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {s.quantity} porte-cartes
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {s.ownerEmail ?? "email inconnu"} · payé le {fmtDate(s.paidAt)}
-                  </p>
-                  {s.fullName ? (
-                    <p className="mt-1 text-sm">
-                      {s.fullName} — {s.addressLine1}
-                      {s.addressLine2 ? `, ${s.addressLine2}` : ""}, {s.postalCode} {s.city}
-                      {s.phone ? ` · ${s.phone}` : ""}
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-sm italic text-muted-foreground">
-                      En attente de l'adresse du restaurateur.
-                    </p>
-                  )}
-                  {s.status === "shipped" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Expédié le {fmtDate(s.shippedAt)}
-                      {s.trackingNumber ? ` · suivi : ${s.trackingNumber}` : ""}
-                    </p>
-                  )}
-                </div>
-                {s.status === "ready" && (
-                  <div className="flex w-full gap-2 sm:w-auto">
-                    <Input
-                      className="clay-in h-10 w-full min-w-40 rounded-2xl border-0 bg-muted sm:w-48"
-                      placeholder="N° de suivi (optionnel)"
-                      value={tracking[s.shipmentId] ?? ""}
-                      onChange={(e) =>
-                        setTracking((t) => ({ ...t, [s.shipmentId]: e.target.value }))
-                      }
-                    />
-                    <Button
-                      size="sm"
-                      className="clay-btn clay-teal rounded-2xl font-bold text-white"
-                      disabled={busyId === s.shipmentId}
-                      onClick={async () => {
-                        setBusyId(s.shipmentId);
-                        try {
-                          await markShipped({
-                            shipmentId: s.shipmentId,
-                            trackingNumber: tracking[s.shipmentId] || undefined,
-                          });
-                          toast.success("Colis marqué comme expédié.");
-                        } catch (e) {
-                          toast.error(e instanceof Error ? e.message : "Erreur");
-                        } finally {
-                          setBusyId(null);
-                        }
-                      }}
-                    >
-                      {busyId === s.shipmentId ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Truck className="size-4" /> Expédié
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function Admin() {
   const navigate = useNavigate();
   const role = useQuery(api.admin.myRole);
@@ -584,8 +458,6 @@ export default function Admin() {
           })}
         </div>
       )}
-
-      <GiftShipments />
 
       {grantTarget && (
         <GrantProDialog target={grantTarget} onClose={() => setGrantTarget(null)} />

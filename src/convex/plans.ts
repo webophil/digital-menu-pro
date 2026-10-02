@@ -5,8 +5,6 @@ export const PRO_PRICE_CENTS = PRO_PRICE_EUR * 100;
 
 /** Abonnement Pro annuel : 190 € (soit 2 mois offerts par rapport au mensuel). */
 export const PRO_PRICE_ANNUAL_EUR = 190;
-/** Cadeau inclus avec l'abonnement annuel (porte-cartes QR, envoyés par colis). */
-export const PRO_ANNUAL_GIFT_QTY = 5;
 // TVA : l'exploitant est micro-entrepreneur non assujetti (art. 293 B du CGI).
 // Avec Stripe Managed Payments (merchant of record), c'est Stripe qui vend au
 // client final et collecte la TVA en son propre nom : le SaaS n'encaisse ni

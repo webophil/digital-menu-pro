@@ -75,7 +75,7 @@ export const updateMyEmail = mutation({
 /**
  * Suppression définitive du compte (RGPD, art. 17 — droit à l'effacement) :
  * - établissement, menus, catégories, plats et photos : supprimés
- * - abonnement et colis cadeau : supprimés
+ * - abonnement : supprimé
  * - sessions et moyens de connexion : supprimés (plus aucune connexion possible)
  * - factures : conservées 10 ans (obligation comptable, voir politique de
  *   confidentialité) ; la fiche utilisateur est anonymisée (email retiré).
@@ -134,13 +134,6 @@ export const deleteMyAccount = mutation({
       }
       await ctx.db.delete(rest._id);
     }
-
-    // Colis cadeau éventuel
-    const shipments = await ctx.db
-      .query("giftShipments")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const s of shipments) await ctx.db.delete(s._id);
 
     // Abonnement (déjà bloqué si Pro actif, voir plus haut)
     if (sub) await ctx.db.delete(sub._id);

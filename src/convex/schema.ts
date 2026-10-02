@@ -179,24 +179,6 @@ const schema = defineSchema(
       photoShape: oneOf(PHOTO_SHAPE_VALUES),
       updatedAt: v.number(),
     }).index("by_restaurant", ["restaurantId"]),
-
-    // Cadeau abonnement annuel : 5 porte-cartes QR à expédier par colis
-    giftShipments: defineTable({
-      userId: v.id("users"),
-      restaurantId: v.optional(v.id("restaurants")),
-      quantity: v.number(), // 5 par défaut
-      status: v.string(), // "awaiting_address" | "ready" | "shipped"
-      // Adresse d'expédition saisie par le restaurateur
-      fullName: v.optional(v.string()),
-      addressLine1: v.optional(v.string()),
-      addressLine2: v.optional(v.string()),
-      postalCode: v.optional(v.string()),
-      city: v.optional(v.string()),
-      phone: v.optional(v.string()),
-      paidAt: v.optional(v.number()), // rempli par le webhook annuel
-      shippedAt: v.optional(v.number()),
-      trackingNumber: v.optional(v.string()),
-    }).index("by_user", ["userId"]),
   },
   {
     schemaValidation: false,

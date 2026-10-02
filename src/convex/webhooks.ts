@@ -138,13 +138,6 @@ async function activate(
     cycle,
   });
 
-  if (cycle === "annual") {
-    await ctx.runMutation(internal.billingInternal.markShipmentPaid, {
-      userId,
-      quantity: 5,
-    });
-  }
-
   const amountEurCents =
     Number(object?.amount_paid ?? object?.amount_total ?? 0) > 0
       ? Number(object.amount_paid ?? object.amount_total)
@@ -159,7 +152,7 @@ async function activate(
     cycle,
     description:
       cycle === "annual"
-        ? "Abonnement V'la le Menu ! Pro — annuel (5 porte-cartes QR inclus) — TVA non applicable, art. 293 B du CGI"
+        ? "Abonnement V'la le Menu ! Pro — annuel — TVA non applicable, art. 293 B du CGI"
         : "Abonnement V'la le Menu ! Pro (mensuel) — TVA non applicable, art. 293 B du CGI",
   });
 }
