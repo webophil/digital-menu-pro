@@ -13,6 +13,7 @@ import {
   Euro,
   FileText,
   Gavel,
+  Languages,
   Lock,
   Receipt,
   Scale,
@@ -209,9 +210,7 @@ export default function Cgv() {
             <p>
               Le service est fourni avec diligence et selon les règles de
               l'art ; des interruptions de maintenance ponctuelles restent
-              possibles. Les traductions automatiques sont fournies en guise
-              d'aide à la traduction : leur vérification par le restaurateur
-              reste recommandée avant diffusion à sa clientèle.
+              possibles.
             </p>
             <p>
               Les contenus saisis (menus, plats, photos, textes) restent la
@@ -220,6 +219,29 @@ export default function Cgv() {
               état de cause, la responsabilité de l'éditeur ne saurait excéder
               les montants effectivement versés au titre de l'abonnement en
               cours.
+            </p>
+          </Section>
+
+          <Section icon={<Languages className="size-4 text-muted-foreground" />} title="Traductions automatiques (Intelligence Artificielle)">
+            <p>
+              Les traductions de la carte vers l'anglais, l'espagnol et
+              l'allemand sont effectuées automatiquement par un système
+              d'Intelligence Artificielle réglé pour un résultat optimum dans
+              le domaine culinaire, de la restauration et de l'alimentation.
+            </p>
+            <p>
+              <strong className="text-foreground">Avertissement :</strong> le service
+              de traduction est appliqué automatiquement à l'ensemble de la
+              carte. Aucune correction manuelle ou personnalisation des
+              traductions n'est proposée au restaurateur : le service de
+              traduction est fourni en l'état, en tant qu'aide à la
+              traduction.
+            </p>
+            <p>
+              Le restaurateur accepte que, malgré ce réglage spécialisé,
+              l'Intelligence Artificielle peut malgré tout commettre des
+              erreurs de sens, de terminologie ou de style, qui ne sont pas
+              directement imputables à V'la le Menu !
             </p>
           </Section>
 
