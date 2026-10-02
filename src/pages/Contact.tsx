@@ -227,6 +227,10 @@ export default function Contact() {
       <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
         © {new Date().getFullYear()} V'la le Menu ! — Menus digitaux pour
         restaurateurs ·{" "}
+        <Link to="/cgv" className="font-semibold hover:text-foreground">
+          CGV
+        </Link>{" "}
+        ·{" "}
         <Link to="/mentions-legales" className="font-semibold hover:text-foreground">
           Mentions légales
         </Link>

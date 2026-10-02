@@ -82,7 +82,9 @@ export default function MentionsLegales() {
             <p>
               N° SIRET : <strong className="text-foreground">325 342 418 00051</strong>
               <br />
-              TVA non applicable, art. 293 B du CGI.
+              TVA non applicable — art. 293 B du CGI, mention désormais
+              « TVA non applicable, art. L. 223-3 du CIBS » (depuis le
+              1er septembre 2026).
             </p>
             <p className="flex items-center gap-1.5">
               <Mail className="size-3.5 shrink-0" />
@@ -224,7 +226,13 @@ export default function MentionsLegales() {
               une clientèle de professionnels (restaurants, brasseries, cafés,
               food trucks et assimilés). Les conditions d'utilisation et les
               relations contractuelles entre l'éditeur et ses clients
-              professionnels sont régies par le droit français.
+              professionnels sont régies par le droit français. Les conditions
+              commerciales des abonnements (tarifs, TVA, paiement,
+              résiliation) sont détaillées dans nos{" "}
+              <Link to="/cgv" className="font-semibold text-primary underline underline-offset-2">
+                Conditions Générales de Vente
+              </Link>
+              .
             </p>
             <p>
               Les clients étant des commerçants agissant dans le cadre de leur
@@ -245,6 +253,10 @@ export default function MentionsLegales() {
       <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
         © {new Date().getFullYear()} V'la le Menu ! — Menus digitaux pour
         restaurateurs ·{" "}
+        <Link to="/cgv" className="font-semibold hover:text-foreground">
+          CGV
+        </Link>{" "}
+        ·{" "}
         <Link to="/politique-confidentialite" className="font-semibold hover:text-foreground">
           Politique de confidentialité
         </Link>

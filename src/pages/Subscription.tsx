@@ -217,10 +217,7 @@ export default function Subscription() {
                   <>
                     {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
                     <span className="text-sm font-bold text-white">
-                      {annual ? " /an" : " /mois"}{" "}
-                      <span className="align-middle text-xs font-semibold text-white/80">
-                      (TVA non applicable)
-                      </span>
+                      {annual ? " /an" : " /mois"}
                     </span>
                   </>
                 )}

@@ -230,6 +230,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           </p>
 
           <p className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-muted-foreground">
+            <Link to="/cgv" className="hover:text-foreground">
+              CGV
+            </Link>
             <Link to="/mentions-legales" className="hover:text-foreground">
               Mentions légales
             </Link>

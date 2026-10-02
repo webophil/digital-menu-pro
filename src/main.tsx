@@ -12,6 +12,7 @@ import "./index.css";
 const Landing = lazy(() => import("./pages/Landing.tsx"));
 const Contact = lazy(() => import("./pages/Contact.tsx"));
 const MentionsLegales = lazy(() => import("./pages/MentionsLegales.tsx"));
+const Cgv = lazy(() => import("./pages/Cgv.tsx"));
 const PolitiqueConfidentialite = lazy(() => import("./pages/PolitiqueConfidentialite.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
@@ -193,6 +194,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/m/:slug" element={<PublicMenu />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/mentions-legales" element={<MentionsLegales />} />
+              <Route path="/cgv" element={<Cgv />} />
               <Route
                 path="/politique-confidentialite"
                 element={<PolitiqueConfidentialite />}

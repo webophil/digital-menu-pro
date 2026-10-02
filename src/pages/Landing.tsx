@@ -519,10 +519,7 @@ function Pricing() {
             <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
               {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
               <span className="text-lg font-bold text-white">
-                {annual ? " /an" : " /mois"}{" "}
-                <span className="align-middle text-xs font-semibold text-white/80">
-                  (TVA non applicable)
-                </span>
+                {annual ? " /an" : " /mois"}
               </span>
             </p>
             <ul className="flex-1 space-y-2.5 text-sm text-white">
@@ -643,6 +640,7 @@ function Footer() {
           <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>
           <Link to="/contact" className="hover:text-foreground">Contact</Link>
+          <Link to="/cgv" className="hover:text-foreground">CGV</Link>
           <Link to="/mentions-legales" className="hover:text-foreground">Mentions légales</Link>
           <Link to="/politique-confidentialite" className="hover:text-foreground">Confidentialité</Link>
           <Link to="/auth" className="hover:text-foreground">Connexion</Link>
