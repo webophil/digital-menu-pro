@@ -402,6 +402,16 @@ export const AMBIANCES: Ambiance[] = [
   },
 ];
 
+/**
+ * Ambiances offertes au plan Gratuit (éditeur /apparence) :
+ * les 5 autres sont visibles mais réservées au plan Pro.
+ */
+export const FREE_AMBIANCE_IDS: readonly string[] = [
+  "signature",
+  "bistrot",
+  "maison",
+];
+
 /** Ambiance correspondant à une config (surlignage dans l'éditeur), ou null. */
 export function findAmbiance(s: AppearanceSettings): Ambiance | null {
   return (

@@ -19,6 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/convex/_generated/api";
+import { isProSubscription } from "@/convex/plans";
 import { cn } from "@/lib/utils";
 import {
   AMBIANCES,
@@ -29,6 +30,7 @@ import {
   DEFAULT_APPEARANCE,
   DIVIDER_META,
   DIVIDER_VALUES,
+  FREE_AMBIANCE_IDS,
   HEADER_STYLE_META,
   HEADER_STYLE_VALUES,
   HEADING_FONT_VALUES,
@@ -58,6 +60,7 @@ import {
   type Texture,
 } from "@/lib/theme";
 import {
+  Crown,
   ExternalLink,
   Flower2,
   Loader2,
@@ -80,15 +83,31 @@ import { toast } from "sonner";
 
 // ---------- Briques d'interface ----------
 
+/** Sceau « réservé aux Pro » affiché sur les options verrouillées du plan gratuit. */
+function ProSeal({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full bg-clay-deep px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-md",
+        className,
+      )}
+    >
+      <Crown className="size-3" /> Réservé aux Pro
+    </span>
+  );
+}
+
 function Panel({
   title,
   hint,
   icon,
+  locked = false,
   children,
 }: {
   title: string;
   hint?: string;
   icon: ReactNode;
+  locked?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -97,7 +116,7 @@ function Panel({
         <div className="clay-in flex size-10 shrink-0 items-center justify-center rounded-2xl bg-muted">
           {icon}
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h2 className="font-[Baloo_2] text-lg leading-tight font-extrabold">
             {title}
           </h2>
@@ -105,8 +124,25 @@ function Panel({
             <p className="text-xs text-muted-foreground">{hint}</p>
           )}
         </div>
+        {locked && <ProSeal />}
       </div>
-      <CardContent className="p-0">{children}</CardContent>
+      <CardContent className="p-0">
+        {locked ? (
+          <div className="relative">
+            <div aria-hidden="true" className="pointer-events-none select-none opacity-40 grayscale">
+              {children}
+            </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-background/55 px-4 text-center">
+              <ProSeal />
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                Ambiances, couleurs et décor personnalisés
+              </span>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
+      </CardContent>
     </Card>
   );
 }
@@ -196,6 +232,8 @@ function SubTitle({ children }: { children: ReactNode }) {
 
 export default function Apparence() {
   const profile = useQuery(api.account.getMyProfile);
+  const sub = useQuery(api.billing.getMySubscription);
+  const pro = isProSubscription(sub);
   const restaurant = profile?.restaurant ?? null;
   const saved = useQuery(
     api.appearance.getMyAppearance,
@@ -528,25 +566,60 @@ export default function Apparence() {
 
         {/* ---- Panneaux de configuration ---- */}
         <div className="order-2 space-y-5 lg:order-1">
+          {/* Bandeau plan gratuit */}
+          {!pro && (
+            <div className="clay-butter clay-flat flex flex-wrap items-center gap-3 rounded-3xl p-4 text-sm">
+              <Sparkles className="size-5 shrink-0 text-[oklch(0.5_0.1_70)]" />
+              <p className="flex-1 text-[oklch(0.38_0.07_70)]">
+                <strong>Plan Gratuit :</strong> 3 ambiances au choix. Passez au
+                Pro pour débloquer les 8 ambiances et la personnalisation
+                complète (couleurs, polices, décor).
+              </p>
+              <Button
+                asChild
+                size="sm"
+                className="rounded-2xl bg-white font-bold text-clay-deep hover:bg-white/90"
+              >
+                <Link to="/subscription">
+                  <Crown className="size-4" /> Passer Pro
+                </Link>
+              </Button>
+            </div>
+          )}
+
           {/* Ambiances */}
           <Panel
             title="Ambiances"
-            hint="Un look complet (couleurs + polices + décor) en un clic."
+            hint={
+              pro
+                ? "Un look complet (couleurs + polices + décor) en un clic."
+                : "3 ambiances offertes — les 5 autres sont réservées au plan Pro."
+            }
             icon={<Sparkles className="size-5 text-clay-deep" />}
           >
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               {AMBIANCES.map((a) => {
                 const active = ambiance?.id === a.id;
+                const locked = !pro && !FREE_AMBIANCE_IDS.includes(a.id);
                 return (
                   <button
                     key={a.id}
                     type="button"
-                    onClick={() => applyAmbiance(a.settings)}
+                    onClick={() => {
+                      if (locked) {
+                        toast.info(
+                          "Réservé au plan Pro : passez au Pro pour débloquer cette ambiance.",
+                        );
+                        return;
+                      }
+                      applyAmbiance(a.settings);
+                    }}
                     className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-2xl p-2.5 text-center transition-all",
+                      "relative flex flex-col items-center gap-1.5 rounded-2xl p-2.5 text-center transition-all",
                       active
                         ? "clay-btn clay-teal text-white"
                         : "clay-sm bg-card hover:-translate-y-0.5",
+                      locked && "cursor-not-allowed opacity-70 grayscale hover:translate-y-0",
                     )}
                   >
                     <span
@@ -571,6 +644,11 @@ export default function Apparence() {
                     >
                       {a.blurb}
                     </span>
+                    {locked && (
+                      <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-background/60">
+                        <ProSeal className="scale-[0.85]" />
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -582,6 +660,7 @@ export default function Apparence() {
             title="Couleurs"
             hint="Jeu de couleurs sur mesure, du fond jusqu'aux prix."
             icon={<Palette className="size-5 text-clay-deep" />}
+            locked={!pro}
           >
             <div className="space-y-4">
               <div className="flex gap-2">
@@ -645,6 +724,7 @@ export default function Apparence() {
             title="Typographie"
             hint="Des polices sélectionnées pour la lecture sur mobile."
             icon={<TypeIcon className="size-5 text-clay-deep" />}
+            locked={!pro}
           >
             <div className="space-y-4">
               <div>
@@ -755,6 +835,7 @@ export default function Apparence() {
             title="Décor & finitions"
             hint="Fioritures, cadres, textures : le détail qui change tout."
             icon={<Flower2 className="size-5 text-clay-deep" />}
+            locked={!pro}
           >
             <div className="space-y-5" style={vars}>
               <div>
