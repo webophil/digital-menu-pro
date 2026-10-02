@@ -14,7 +14,7 @@ V'la le Menu ! (vlalemenu.fr) permet aux restaurants, brasseries, cafés, pizzer
 ## Tarifs
 
 - **Gratuit** : 0 € — 1 menu, 1 photo par plat, 14 allergènes, QR code imprimable, sans carte bancaire.
-- **Pro** : 19 €/mois ou 190 €/an (2 mois offerts) — menus illimités, photos illimitées, traduction automatique FR/EN/ES/DE. Prix nets de TVA (TVA non applicable, art. 293 B du CGI — micro-entrepreneur).
+- **Pro** : 19 €/mois ou 190 €/an (2 mois offerts) — menus illimités, photos illimitées, traduction automatique FR/EN/ES/DE. Prix nets de taxe : TVA non applicable (art. 293 B du CGI, désormais art. L. 223-3 du CIBS depuis le 1er septembre 2026 — micro-entrepreneur).
 - Sans engagement, résiliable à tout moment depuis l'espace client. Paiement sécurisé par Stripe. Clientèle exclusivement professionnelle (B2B).
 
 ## Comment ça fonctionne
@@ -29,6 +29,7 @@ V'la le Menu ! (vlalemenu.fr) permet aux restaurants, brasseries, cafés, pizzer
 - [Accueil](https://vlalemenu.fr/): présentation du service, fonctionnalités, tarifs et FAQ.
 - [Contact](https://vlalemenu.fr/contact): formulaire de contact (l'équipe répond en général en moins de 24 h ouvrées).
 - [Mentions légales](https://vlalemenu.fr/mentions-legales): éditeur (PhilDEV — Philippe PERARD, Reims), hébergement, propriété intellectuelle, droit applicable.
+- [Conditions Générales de Vente](https://vlalemenu.fr/cgv): tarifs nets de taxe (TVA non applicable), abonnement mensuel/annuel, paiement Stripe, résiliation, facturation.
 - [Politique de confidentialité](https://vlalemenu.fr/politique-confidentialite): données collectées, finalités, sous-traitants (Vercel, Convex, Resend, Stripe, OpenAI), durées de conservation, cookies, droits RGPD.
 
 ## Informations pratiques
