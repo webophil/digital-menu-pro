@@ -170,14 +170,20 @@ export default function Cgv() {
             <p>
               L'abonnement est <strong className="text-foreground">sans engagement</strong> :
               il peut être résilié à tout moment, sans frais, depuis l'espace
-              client. La résiliation prend effet immédiatement ; l'accès aux
-              fonctionnalités Pro (menus illimités, traduction automatique)
-              prend fin à cette date. Aucun remboursement au prorata n'est dû
-              pour la période déjà entamée.
+              client.
             </p>
             <p>
-              Le plan Gratuit reste disponible après résiliation, avec les
-              limites correspondantes (1 menu, sans traduction).
+              La résiliation ne coupe pas l'accès immédiatement : le
+              restaurateur <strong className="text-foreground">bénéficie des avantages Pro
+              jusqu'à la fin de la période déjà payée</strong>. Exemple : pour un
+              renouvellement prévu le 20 octobre, une résiliation demandée le
+              23 septembre conserve le statut Pro jusqu'au 20 octobre.
+            </p>
+            <p>
+              À l'issue de cette période, le compte repasse automatiquement au
+              plan Gratuit (1 menu, sans traduction automatique). Aucun
+              remboursement au prorata n'est dû, l'accès aux fonctionnalités
+              Pro se poursuivant jusqu'à la fin de la période payée.
             </p>
           </Section>
 

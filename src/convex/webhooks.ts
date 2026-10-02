@@ -10,7 +10,8 @@ import { internal } from "./_generated/api";
  * Événements traités :
  * - checkout.session.completed : premier paiement (metadata user_id/cycle)
  * - invoice.paid / invoice.payment_failed : renouvellements et échecs
- * - customer.subscription.deleted : résiliation
+ * - customer.subscription.updated (cancel_at_period_end) : résiliation programmée
+ * - customer.subscription.deleted : fin effective (passage en Gratuit)
  */
 export const paymentWebhook = httpAction(async (ctx, request) => {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -103,6 +104,17 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
           periodEnd: undefined,
           cycle: undefined,
         });
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        // Résiliation programmée depuis le tableau de bord Stripe :
+        // les avantages Pro durent jusqu'à la fin de la période payée.
+        if (object?.cancel_at_period_end === true) {
+          await ctx.runMutation(internal.billingInternal.markCancelling, {
+            userId,
+          });
+        }
         break;
       }
 

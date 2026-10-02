@@ -87,9 +87,11 @@ export const createCheckoutSession = action({
 });
 
 /**
- * Annule l'abonnement Stripe immédiatement (un clic depuis Mes Infos).
- * Si aucun identifiant Stripe n'est connu (statut offert par l'admin),
- * on repasse simplement en Gratuit côté base.
+ * Résilie l'abonnement Stripe à la fin de la période déjà payée (un clic
+ * depuis Mes Infos) : les avantages Pro restent actifs jusqu'à l'échéance
+ * en cours ; à cette date, Stripe enverra customer.subscription.deleted et
+ * le webhook fera repasser le compte en Gratuit. Si aucun identifiant
+ * Stripe n'est connu (statut offert par l'admin), bascule immédiate.
  */
 export const cancelSubscription = action({
   args: {},
@@ -104,9 +106,17 @@ export const cancelSubscription = action({
     if (externalId) {
       const stripe = stripeClient();
       try {
-        await stripe.subscriptions.cancel(externalId);
+        await stripe.subscriptions.update(externalId, {
+          cancel_at_period_end: true,
+        });
+        // Statut local "cancelling" : affiché comme résilié jusqu'à
+        // l'échéance, sans retirer les avantages Pro tout de suite.
+        await ctx.runMutation(internal.billingInternal.markCancelling, {
+          userId,
+        });
+        return { ok: true };
       } catch {
-        // déjà annulé côté Stripe : on poursuit avec la mise à jour locale
+        // déjà annulé côté Stripe (ou erreur) : bascule locale immédiate
       }
     }
     await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });

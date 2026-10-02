@@ -179,14 +179,16 @@ export default function MesInfos() {
   const doCancel = async () => {
     if (
       !confirm(
-        "Annuler votre abonnement Pro ? Vous repasserez au plan Gratuit immédiatement.",
+        "Résilier votre abonnement Pro ?\n\nVous conservez tous vos avantages Pro jusqu'à la fin de la période déjà payée. À cette date, votre compte repassera automatiquement au plan Gratuit.",
       )
     )
       return;
     setBusyCancel(true);
     try {
       await cancelSubscription({});
-      toast.success("Abonnement annulé. Vous êtes repassé au plan Gratuit.");
+      toast.success(
+        "Abonnement résilié — vos avantages Pro restent actifs jusqu'à la fin de la période déjà payée.",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {

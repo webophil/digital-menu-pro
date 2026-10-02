@@ -124,11 +124,13 @@ export default function Subscription() {
               </CardTitle>
               <CardDescription>
                 {pro
-                  ? sub?.currentPeriodEnd
-                    ? `${sub.source === "admin" ? "Statut offert" : "Renouvellement"} jusqu'au ${formatDate(sub.currentPeriodEnd)}`
-                    : sub?.source === "admin"
-                      ? "Statut PRO accordé par l'administration, sans limite de durée."
-                      : "Abonnement Pro actif, sans limite de durée."
+                  ? sub?.status === "cancelling" && sub.currentPeriodEnd
+                    ? `Abonnement résilié — vos avantages Pro restent actifs jusqu'au ${formatDate(sub.currentPeriodEnd)}, date de fin de la période déjà payée.`
+                    : sub?.currentPeriodEnd
+                      ? `${sub.source === "admin" ? "Statut offert" : "Renouvellement"} jusqu'au ${formatDate(sub.currentPeriodEnd)}`
+                      : sub?.source === "admin"
+                        ? "Statut PRO accordé par l'administration, sans limite de durée."
+                        : "Abonnement Pro actif, sans limite de durée."
                   : proExpired
                     ? `Votre période Pro a expiré${sub?.currentPeriodEnd ? ` le ${formatDate(sub.currentPeriodEnd)}` : ""} — renouvelez pour retrouver menus illimités et traduction.`
                     : "Vous êtes sur le plan gratuit — 1 menu, sans traduction automatique."}

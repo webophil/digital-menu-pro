@@ -178,6 +178,27 @@ export const setPlanPro = internalMutation({
   },
 });
 
+/**
+ * Résiliation programmée (fin de période payée) : le compte reste Pro
+ * jusqu'à currentPeriodEnd, mais est marqué "cancelling" pour l'affichage.
+ * Le webhook customer.subscription.deleted fera ensuite le passage en Gratuit.
+ */
+export const markCancelling = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (sub) {
+      await ctx.db.patch(sub._id, {
+        status: "cancelling",
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
 export const setPlanFree = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
