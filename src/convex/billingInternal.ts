@@ -73,21 +73,37 @@ export const loadAllTranslateJobs = internalQuery({
       .query("dishes")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurantId))
       .take(max);
+    const categories = await ctx.db
+      .query("categories")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurantId))
+      .collect();
 
     const jobs: Array<{
       dishId: Id<"dishes"> | null;
+      categoryId: Id<"categories"> | null;
       name: string;
       description: string;
     }> = [
       {
         dishId: null,
+        categoryId: null,
         name: restaurant.name,
         description: restaurant.tagline ?? "",
       },
+      // Titres de catégories (Entrées → Starters / Vorspeise…)
+      ...categories
+        .filter((c) => c.active !== false)
+        .map((c) => ({
+          dishId: null,
+          categoryId: c._id as Id<"categories">,
+          name: c.name,
+          description: "",
+        })),
       ...dishes
         .filter((d) => d.published !== false)
         .map((d) => ({
           dishId: d._id as Id<"dishes">,
+          categoryId: null,
           name: d.name,
           description: d.description ?? "",
         })),
@@ -115,6 +131,21 @@ export const applyDishTranslations = internalMutation({
       if (patch[key] !== undefined) clean[key] = patch[key];
     }
     await ctx.db.patch(dishId, clean);
+  },
+});
+
+export const applyCategoryTranslations = internalMutation({
+  args: {
+    categoryId: v.id("categories"),
+    patch: v.record(v.string(), v.string()),
+  },
+  handler: async (ctx, { categoryId, patch }) => {
+    const allowed = ["nameEn", "nameEs", "nameDe"];
+    const clean: Record<string, string> = {};
+    for (const key of allowed) {
+      if (patch[key] !== undefined) clean[key] = patch[key];
+    }
+    await ctx.db.patch(categoryId, clean);
   },
 });
 

@@ -92,7 +92,13 @@ const schema = defineSchema(
       emoji: v.optional(v.string()),
       position: v.number(),
       active: v.optional(v.boolean()), // false = catégorie masquée au client
-    }).index("by_menu", ["menuId"]),
+      // Traductions automatiques (plan Pro)
+      nameEn: v.optional(v.string()),
+      nameEs: v.optional(v.string()),
+      nameDe: v.optional(v.string()),
+    })
+      .index("by_menu", ["menuId"])
+      .index("by_restaurant", ["restaurantId"]),
 
     // Un plat
     dishes: defineTable({

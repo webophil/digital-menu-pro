@@ -270,7 +270,7 @@ export default function MenuEditor() {
     setTranslating(true);
     try {
       await translate({ restaurantId: restaurant._id });
-      toast.success("Menu traduit en EN, ES et DE !");
+      toast.success("Vitrine, catégories et plats traduits en EN, ES et DE !");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -296,7 +296,7 @@ export default function MenuEditor() {
             variant="outline"
             disabled={translating}
             onClick={runTranslate}
-            title={pro ? "Traduire tout le menu" : "Réservé au plan Pro"}
+            title={pro ? "Traduire la vitrine, les catégories et les plats" : "Réservé au plan Pro"}
           >
             {translating ? (
               <Loader2 className="size-4 animate-spin" />

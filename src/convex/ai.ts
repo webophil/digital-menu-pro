@@ -88,7 +88,8 @@ export const translateContent = action({
 });
 
 /**
- * Traduit tous les plats du restaurant (+ la vitrine). Réservé au plan Pro.
+ * Traduit tous les contenus du restaurant : vitrine, titres de catégories
+ * et plats. Réservé au plan Pro.
  */
 export const translateAll = action({
   args: { restaurantId: v.id("restaurants") },
@@ -107,6 +108,11 @@ export const translateAll = action({
           dishId: item.dishId,
           patch,
         });
+      } else if (item.categoryId) {
+        await ctx.runMutation(
+          internal.billingInternal.applyCategoryTranslations,
+          { categoryId: item.categoryId, patch },
+        );
       } else {
         await ctx.runMutation(
           internal.billingInternal.applyRestaurantTranslations,

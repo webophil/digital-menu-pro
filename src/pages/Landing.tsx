@@ -332,7 +332,7 @@ function Features() {
       icon: <Languages className="size-6 text-white" />,
       bg: "clay-butter",
       title: "Traduction automatique",
-      text: "Du français vers l'anglais, l'espagnol et l'allemand (+ à venir) en un clic. Vos plats restent appétissants dans chaque langue.",
+      text: "Du français vers l'anglais, l'espagnol et l'allemand (+ à venir) en un clic. Vos catégories et vos plats restent appétissants dans chaque langue.",
     },
     {
       icon: <Zap className="size-6 text-white" />,
@@ -556,11 +556,11 @@ function Faq() {
   const qa = [
     {
       q: "Mes clients doivent-ils installer une application ?",
-      a: "Non. Ils scannent le QR code affiché sur table et votre menu s'ouvre directement dans leur navigateur, en français, anglais, espagnol ou allemand.",
+      a: "Non. Ils scannent le QR code affiché sur table et votre menu s'ouvre directement dans leur navigateur, en français, anglais, espagnol ou allemand. Les titres de catégories (Entrées, Plats…) sont traduits avec les plats.",
     },
     {
       q: "Comment fonctionne la traduction automatique ?",
-      a: "Vous rédigez vos plats en français, puis cliquez sur « Traduire ». Nos modèles traduisent noms et descriptions vers l'anglais, l'espagnol et l'allemand, avec un vocabulaire culinaire naturel. Inclus dans le plan Pro.",
+      a: "Vous rédigez vos plats en français, puis cliquez sur « Traduire ». Nos modèles traduisent les titres de catégories, noms et descriptions vers l'anglais, l'espagnol et l'allemand, avec un vocabulaire culinaire naturel. Inclus dans le plan Pro.",
     },
     {
       q: "L'affichage des allergènes est-il conforme ?",

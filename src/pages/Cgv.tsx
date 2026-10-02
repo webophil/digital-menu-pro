@@ -224,10 +224,13 @@ export default function Cgv() {
 
           <Section icon={<Languages className="size-4 text-muted-foreground" />} title="Traductions automatiques (Intelligence Artificielle)">
             <p>
-              Les traductions de la carte vers l'anglais, l'espagnol et
-              l'allemand sont effectuées automatiquement par un système
-              d'Intelligence Artificielle réglé pour un résultat optimum dans
-              le domaine culinaire, de la restauration et de l'alimentation.
+              Les traductions de la carte (titres de catégories, noms et
+              descriptions de plats) ainsi que de la vitrine de
+              l'établissement, vers l'anglais, l'espagnol et l'allemand, sont
+              effectuées
+              automatiquement par un système d'Intelligence Artificielle réglé
+              pour un résultat optimum dans le domaine culinaire, de la
+              restauration et de l'alimentation.
             </p>
             <p>
               <strong className="text-foreground">Avertissement :</strong> le service
