@@ -130,12 +130,14 @@ export default function Cgv() {
               <strong className="text-foreground">
                 TVA non applicable, art. 293 B du CGI
               </strong>{" "}
-              — depuis le 1er septembre 2026, la mention en vigueur est{" "}
+              — depuis le 1er septembre 2026, la nouvelle référence est{" "}
               <strong className="text-foreground">
                 « TVA non applicable, art. L. 223-3 du Code des impositions sur
                 les biens et services (CIBS) »
               </strong>
-              .
+              . Pendant la période transitoire (au moins jusqu'en 2027), les
+              deux mentions coexistent et sont annoncées en parallèle sur les
+              factures et les supports du service.
             </p>
             <p>
               Offres en vigueur : plan <strong className="text-foreground">Gratuit</strong>{" "}

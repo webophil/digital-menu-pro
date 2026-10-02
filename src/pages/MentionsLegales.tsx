@@ -82,9 +82,10 @@ export default function MentionsLegales() {
             <p>
               N° SIRET : <strong className="text-foreground">325 342 418 00051</strong>
               <br />
-              TVA non applicable — art. 293 B du CGI, mention désormais
-              « TVA non applicable, art. L. 223-3 du CIBS » (depuis le
-              1er septembre 2026).
+              TVA non applicable — art. 293 B du CGI et, depuis le
+              1er septembre 2026, art. L. 223-3 du CIBS : les deux mentions
+              coexistent pendant la période transitoire (au moins jusqu'en
+              2027) et figurent en parallèle sur les factures.
             </p>
             <p className="flex items-center gap-1.5">
               <Mail className="size-3.5 shrink-0" />

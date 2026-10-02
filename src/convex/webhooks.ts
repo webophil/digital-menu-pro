@@ -152,8 +152,8 @@ async function activate(
     cycle,
     description:
       cycle === "annual"
-        ? "Abonnement V'la le Menu ! Pro — annuel — TVA non applicable, art. 293 B du CGI"
-        : "Abonnement V'la le Menu ! Pro (mensuel) — TVA non applicable, art. 293 B du CGI",
+        ? "Abonnement V'la le Menu ! Pro — annuel — TVA non applicable, art. 293 B du CGI / art. L. 223-3 du CIBS"
+        : "Abonnement V'la le Menu ! Pro (mensuel) — TVA non applicable, art. 293 B du CGI / art. L. 223-3 du CIBS",
   });
 }
 
