@@ -258,7 +258,8 @@ function ownerOf(s: Stripe.Subscription): string | null {
  *  1. l'identifiant gravé par le webhook pour ce compte (opposable) ;
  *  2. sinon le customer gravé par le webhook (chaîne de confiance établie) ;
  *  3. sinon la metadata user_id de l'abonnement, examinée sur TOUS les
- *     clients Stripe portant l'email du compte — jamais le premier trouvé.
+ *     clients Stripe portant l'email du compte et toutes leurs pages
+ *     (auto-pagination Stripe), jamais le premier trouvé.
  * L'email seul n'établit jamais la propriété (changement d'email non
  * vérifié) : tout abonnement non attribuable rend le résultat ambigu →
  * SupportError, sans aucune modification appliquée.
@@ -296,29 +297,31 @@ async function resolveAccountStripeSubscription(
     }
   }
 
-  // ---- 2. Customer enregistré (inspecté intégralement) ----
+  // ---- 2. Customer enregistré (auto-pagination : toutes les pages) ----
+  // limit: 100 = taille de page maximum ; l'auto-pagination Stripe enchaîne
+  // les curseurs jusqu'à has_more = false — pas de lecture limitée à .data.
   const recorded: Stripe.Subscription[] = [];
   if (storedCustomer) {
-    const res = await stripe.subscriptions.list({
-      customer: storedCustomer,
-      status: "all",
-      limit: 100,
-    });
-    recorded.push(...res.data.filter(isLiveStripeSub));
+    await stripe.subscriptions
+      .list({ customer: storedCustomer, status: "all", limit: 100 })
+      .autoPagingEach((s) => {
+        if (isLiveStripeSub(s)) recorded.push(s);
+      });
   }
 
-  // ---- 3. Email : TOUS les clients (pas de s'arrêter au premier) ----
+  // ---- 3. Email : TOUS les clients (auto-pagination) et TOUS leurs
+  // abonnements — jamais de s'arrêter au premier client ni à la première page ----
   const viaEmail: Stripe.Subscription[] = [];
   if (email) {
-    const customers = await stripe.customers.list({ email, limit: 10 });
-    for (const customer of customers.data) {
-      const res = await stripe.subscriptions.list({
-        customer: customer.id,
-        status: "all",
-        limit: 100,
+    await stripe.customers
+      .list({ email, limit: 100 })
+      .autoPagingEach(async (customer) => {
+        await stripe.subscriptions
+          .list({ customer: customer.id, status: "all", limit: 100 })
+          .autoPagingEach((s) => {
+            if (isLiveStripeSub(s)) viaEmail.push(s);
+          });
       });
-      viaEmail.push(...res.data.filter(isLiveStripeSub));
-    }
   }
 
   // ---- 4. Classement : association prouvée vs non attribuable ----
