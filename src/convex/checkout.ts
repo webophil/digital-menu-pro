@@ -5,7 +5,6 @@ import { v } from "convex/values";
 import Stripe from "stripe";
 import { action } from "./_generated/server";
 import { internal, api } from "./_generated/api";
-import { isProSubscription } from "./plans";
 
 function stripeClient() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -114,8 +113,9 @@ export const cancelSubscription = action({
 
     const sub = await ctx.runQuery(api.billing.getMySubscription, {});
     if (!sub) throw new Error("Aucun abonnement actif.");
-    if (!isProSubscription(sub))
-      throw new Error("Aucun abonnement Pro actif à résilier.");
+    // Pas de blocage sur le statut Pro local : une période localement
+    // expirée (webhook manqué) ne prouve rien sur la facturation réelle.
+    // C'est Stripe qui décide — vérification faite plus bas.
 
     const stripe = stripeClient();
     const storedId = sub.externalSubscriptionId ?? null;
@@ -191,10 +191,16 @@ export const cancelSubscription = action({
 
     // ---- 3. Aucun abonnement vivant trouvé ----
     // On ne passe en Gratuit que si l'absence de prélèvement est vérifiable :
-    // identifiants Stripe enregistrés (customer inspecté) ou statut offert
-    // par l'admin. Sinon (compte payant sans identifiant fiable, email
-    // modifié…), on bloque plutôt que d'annoncer une résiliation non prouvée.
-    if (storedId || storedCustomer || sub.source === "admin") {
+    // identifiants Stripe enregistrés (customer inspecté), statut offert par
+    // l'admin, ou compte déjà localement sans prétention payante (plan
+    // Gratuit). Sinon (plan Pro sans identifiant fiable, email modifié…),
+    // on bloque plutôt que d'annoncer une résiliation non prouvée.
+    if (
+      storedId ||
+      storedCustomer ||
+      sub.source === "admin" ||
+      sub.plan !== "pro"
+    ) {
       await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
       return { ok: true, mode: "immediate" as const, warning: undefined };
     }

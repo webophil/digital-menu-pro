@@ -178,14 +178,12 @@ export default function MesInfos() {
 
   const doCancel = async () => {
     const granted = sub?.source === "admin";
-    if (
-      !confirm(
-        granted
-          ? "Retirer votre statut Pro offert ?\n\nAucun prélèvement n'est en cours : votre compte repassera immédiatement en plan Gratuit."
-          : "Résilier votre abonnement Pro ?\n\nVous conservez tous vos avantages Pro jusqu'à la fin de la période déjà payée. À cette date, votre compte repassera automatiquement au plan Gratuit.",
-      )
-    )
-      return;
+    const confirmText = granted
+      ? "Retirer votre statut Pro offert ?\n\nAucun prélèvement n'est en cours : votre compte repassera immédiatement en plan Gratuit."
+      : pro
+        ? "Résilier votre abonnement Pro ?\n\nVous conservez tous vos avantages Pro jusqu'à la fin de la période déjà payée. À cette date, votre compte repassera automatiquement au plan Gratuit."
+        : "Résilier votre abonnement ?\n\nVotre période affichée est terminée, mais un prélèvement est peut-être encore en cours : Stripe va être vérifié et tout renouvellement sera stoppé.";
+    if (!confirm(confirmText)) return;
     setBusyCancel(true);
     try {
       const res = await cancelSubscription({});
@@ -193,10 +191,14 @@ export default function MesInfos() {
         toast.success(
           "Statut retiré — aucun prélèvement n'était en cours, votre compte est repassé en plan Gratuit.",
         );
-      } else {
+      } else if (pro) {
         toast.success(
           "Abonnement résilié — vos avantages Pro restent actifs jusqu'à la fin de la période déjà payée.",
         );
+      } else {
+        // Période locale expirée (webhook manqué) : Stripe confirme l'arrêt,
+        // sans promettre d'avantages Pro qui ne s'affichent pas localement.
+        toast.success("Abonnement résilié — aucun renouvellement n'aura lieu.");
       }
       if (res?.warning) toast.info(res.warning);
     } catch (e) {
@@ -325,7 +327,10 @@ export default function MesInfos() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              {pro ? (
+              {/* Le bouton de résiliation reste proposé tant que le compte est
+                  Pro localement, même période expirée (webhook manqué) : c'est
+                  précisément le cas où Stripe doit être vérifié. */}
+              {pro || sub?.plan === "pro" ? (
                 <>
                   <Button
                     variant="outline"
