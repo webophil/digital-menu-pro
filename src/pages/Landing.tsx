@@ -157,7 +157,7 @@ function Hero() {
                 className="aspect-[4/4.4] w-full rounded-[1.25rem] object-cover"
               />
               <span className="clay-btn clay-teal absolute -top-3 -left-2 rounded-full px-3 py-1 text-[11px] font-extrabold text-white">
-                1 · On scanne
+                1 · Votre client scanne
               </span>
             </motion.div>
           )}
@@ -190,7 +190,7 @@ function Hero() {
                 className="aspect-[4/5] w-full rounded-[1.25rem] object-cover"
               />
               <span className="clay-btn absolute -top-3 -right-2 z-20 rounded-full bg-white px-3 py-1 text-[11px] font-extrabold text-clay-deep">
-                2 · Menu affiché
+                2 · Votre Menu est affiché
               </span>
             </motion.div>
           ) : (
