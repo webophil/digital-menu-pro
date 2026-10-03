@@ -263,6 +263,10 @@ function ownerOf(s: Stripe.Subscription): string | null {
  * L'email seul n'établit jamais la propriété (changement d'email non
  * vérifié) : tout abonnement non attribuable rend le résultat ambigu →
  * SupportError, sans aucune modification appliquée.
+ * La cible enregistrée (étape 1) n'est qu'un candidat : la recherche se
+ * termine toujours (étapes 2 à 4) pour que deux abonnements du même compte
+ * déclenchent le blocage « plusieurs abonnements » (le second resterait
+ * facturé sinon).
  * Retourne null uniquement quand aucun abonnement vivant n'apparaît nulle part.
  */
 async function resolveAccountStripeSubscription(
@@ -276,7 +280,10 @@ async function resolveAccountStripeSubscription(
 ): Promise<Resolution | null> {
   const { storedId, storedCustomer, email, userId } = args;
 
-  // ---- 1. Identifiant enregistré pour CE compte ----
+  // ---- 1. Identifiant enregistré pour CE compte → candidat, PAS de décision
+  // anticipée : les étapes 2 à 4 s'exécutent toujours, pour que deux
+  // abonnements du même compte déclenchent le blocage doublon ----
+  const recordedIdSubs: Stripe.Subscription[] = [];
   if (storedId) {
     let existing: Stripe.Subscription | null = null;
     try {
@@ -293,7 +300,7 @@ async function resolveAccountStripeSubscription(
           `L'abonnement enregistré sur votre compte (${storedId}) appartient ` +
             `explicitement à un autre compte.`,
         );
-      return { ref: toSubRef(existing, storedCustomer), unattributable: 0 };
+      recordedIdSubs.push(existing);
     }
   }
 
@@ -325,18 +332,23 @@ async function resolveAccountStripeSubscription(
   }
 
   // ---- 4. Classement : association prouvée vs non attribuable ----
-  const recordedIds = new Set(recorded.map((s) => s.id));
+  // Fiables : identifiant ou customer gravés pour ce compte, ou metadata
+  // user_id qui le désigne explicitement.
+  const trustedIds = new Set<string>([
+    ...recorded.map((s) => s.id),
+    ...recordedIdSubs.map((s) => s.id),
+  ]);
   const seen = new Set<string>();
   const proven: Stripe.Subscription[] = [];
   const unattributable: Stripe.Subscription[] = [];
-  for (const s of [...recorded, ...viaEmail]) {
+  for (const s of [...recordedIdSubs, ...recorded, ...viaEmail]) {
     if (seen.has(s.id)) continue;
     seen.add(s.id);
     const owner = ownerOf(s);
     if (owner === userId) {
       proven.push(s); // la metadata désigne explicitement ce compte
-    } else if (owner === null && recordedIds.has(s.id)) {
-      proven.push(s); // sous le customer que ce compte a enregistré
+    } else if (owner === null && trustedIds.has(s.id)) {
+      proven.push(s); // identifiant ou customer gravés pour ce compte
     } else {
       unattributable.push(s); // un autre compte, ou aucune preuve
     }
