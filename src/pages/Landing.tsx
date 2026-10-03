@@ -297,10 +297,19 @@ function Hero() {
               Scannez ce QR code avec votre téléphone : le menu client s'ouvre
               instantanément, comme dans un vrai restaurant. Menu avec traductions et options de personnalisation PRO.
             </p>
-            <span className="clay-sm mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-bold">
-              <ScanLine className="size-3.5 text-primary" />
-              Scannez pour essayer
-            </span>
+            <Button
+              asChild
+              variant="ghost"
+              className="clay-sm mt-3 h-auto rounded-full bg-muted px-3 py-1 text-xs font-bold text-foreground hover:bg-muted/70"
+            >
+              <a
+                href="https://vlalemenu.fr/m/mmqnzu"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Voir le menu démo
+              </a>
+            </Button>
           </div>
         </motion.div>
       </motion.div>
