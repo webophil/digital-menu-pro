@@ -489,7 +489,7 @@ function Pricing() {
           <CardContent className="flex h-full flex-col gap-5 p-8">
             <div>
               <h3 className="font-[Baloo_2] text-3xl font-extrabold text-clay-deep">Gratuit</h3>
-              <p className="text-sm text-muted-foreground">Pour tester et petit menu</p>
+              <p className="text-sm text-muted-foreground">Un vrai service, rien à payer !</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold">
               0 €<span className="text-lg font-bold text-muted-foreground"> /mois</span>
