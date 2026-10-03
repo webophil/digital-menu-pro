@@ -295,7 +295,7 @@ function Hero() {
             </p>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
               Scannez ce QR code avec votre téléphone : le menu client s'ouvre
-              instantanément. Menu présenté avec traductions et options de personnalisation PRO.
+              instantanément. Le menu présenté utilise les traductions et options de personnalisation PRO.
             </p>
             <Button
               asChild
