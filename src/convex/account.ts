@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { listAdminIds } from "./admin";
+import { listAdminIds, logAdminAction } from "./admin";
 
 /** Profil du compte connecté : email, rôle, restaurant (s'il existe). */
 export const getMyProfile = query({
@@ -29,8 +29,14 @@ export const getMyProfile = query({
 
 /**
  * Change l'email du compte. L'authentification reste valable (session
- * courante inchangée) ; on met à jour authAccounts + table users ensemble
- * pour que la prochaine connexion se fasse avec le nouvel email.
+ * courante inchangée) ; users + authAccounts sont mis à jour ensemble pour
+ * que la prochaine connexion se fasse avec le nouvel email.
+ *
+ * SÉCURITÉ : la vérification de l'ancienne adresse ne vaut PAS pour la
+ * nouvelle — emailVerificationTime est effacé ici et ne sera rétabli que
+ * par Convex Auth au moment où l'utilisateur valide le code envoyé à la
+ * nouvelle adresse (reconnexion par email-otp). Jusque-là, le compte reste
+ * inéligible à une promotion admin (cf. admin.promoteToAdmin).
  *
  * Réservé aux NON-admins : l'email d'un administrateur identifie un compte
  * à hauts privilèges — il ne doit jamais pouvoir être remplacé sans
@@ -64,7 +70,9 @@ export const updateMyEmail = mutation({
       throw new Error("Cet email est déjà utilisé par un autre compte.");
     }
 
-    // authAccounts (Convex Auth email OTP) : provider "email"
+    // Identité de connexion email-otp. Le provider Convex Auth de ce projet
+    // s'appelle "email" (Email() de @convex-dev/auth), les code OTP passant
+    // par lui : on met à jour providerAccountId + secret ensemble.
     const account = await ctx.db
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q) =>
@@ -78,7 +86,12 @@ export const updateMyEmail = mutation({
       });
     }
 
-    await ctx.db.patch(userId, { email: normalized });
+    // users + vérification : la nouvelle adresse repart de zéro. Le flag ne
+    // sera rétabli que par la validation du code envoyé à cette adresse.
+    await ctx.db.patch(userId, {
+      email: normalized,
+      emailVerificationTime: undefined,
+    });
     return { ok: true };
   },
 });
@@ -177,8 +190,24 @@ export const deleteMyAccount = mutation({
     for (const a of accounts) await ctx.db.delete(a._id);
 
     // Factures conservées (obligation comptable) — la fiche utilisateur est
-    // anonymisée : l'email (donnée identifiante) est effacé.
-    await ctx.db.patch(userId, { email: undefined, name: "Compte supprimé" });
+    // anonymisée : l'email (donnée identifiante) est effacé. Le rôle admin
+    // est retiré DANS LA MÊME transaction (le contrôle du dernier admin a
+    // déjà été fait plus haut) : un compte anonymisé ne doit plus compter
+    // comme administrateur, sinon tous les admins peuvent disparaître en
+    // cascade sans que la protection ne réagisse.
+    await ctx.db.patch(userId, {
+      email: undefined,
+      name: "Compte supprimé",
+      role: user.role === "admin" ? undefined : user.role,
+    });
+    if (user.role === "admin") {
+      await logAdminAction(ctx, {
+        action: "demote",
+        actorId: userId,
+        targetId: userId,
+        note: "Compte admin supprimé (RGPD) — rôle retiré automatiquement",
+      });
+    }
 
     return { ok: true };
   },
