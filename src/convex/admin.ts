@@ -240,6 +240,20 @@ export const myRole = query({
   },
 });
 
+/** Liste des administrateurs (réservée aux admins) : email + ancienneté. */
+export const listAdmins = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const admins = await listAdminIds(ctx);
+    return admins.map((a) => ({
+      userId: a._id,
+      email: a.email ?? null,
+      createdAt: a._creationTime,
+    }));
+  },
+});
+
 // ---------- Gestion des restaurateurs ----------
 
 /** Liste des restaurateurs avec leur établissement, email et statut d'abonnement. */

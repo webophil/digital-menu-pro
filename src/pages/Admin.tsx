@@ -232,12 +232,34 @@ const ACTION_LABEL: Record<string, string> = {
   email_change: "Email admin modifié (CLI)",
 };
 
-function AdminsPanel() {
+function AdminsPanel({ myUserId }: { myUserId: Id<"users"> | null }) {
   const promote = useMutation(api.admin.promoteToAdmin);
   const demote = useMutation(api.admin.demoteAdmin);
   const audit = useQuery(api.admin.listAuditLog);
+  const admins = useQuery(api.admin.listAdmins);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const submitDemotion = async (target: { userId: string; email: string | null }) => {
+    if (
+      !confirm(
+        `Retirer le rôle administrateur à « ${target.email ?? target.userId} » ?`,
+      )
+    )
+      return;
+    setBusyId(target.userId);
+    try {
+      await demote({ userId: target.userId as Id<"users"> });
+      toast.success(
+        `Rôle administrateur retiré à ${target.email ?? target.userId}.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const submitPromotion = async () => {
     const normalized = email.trim().toLowerCase();
@@ -296,6 +318,59 @@ function AdminsPanel() {
           </Button>
         </div>
 
+        {/* Liste des administrateurs — retrait possible tant qu'il en reste
+            plus d'un (protection du dernier admin appliquée côté serveur). */}
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Administrateurs en place
+          </p>
+          {admins === undefined ? null : admins.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucun.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {admins.map((a) => {
+                const isMe = myUserId !== null && a.userId === myUserId;
+                const isLast = admins.length <= 1;
+                return (
+                  <li
+                    key={a.userId}
+                    className="flex flex-wrap items-center gap-2 rounded-2xl bg-muted/60 px-3 py-2 text-sm"
+                  >
+                    <ShieldCheck className="size-4 text-primary" />
+                    <span className="font-bold">{a.email ?? a.userId}</span>
+                    {isMe && (
+                      <Badge className="clay-in rounded-full border-0 bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
+                        vous
+                      </Badge>
+                    )}
+                    {isLast && (
+                      <span className="text-xs text-muted-foreground">
+                        dernier admin — retrait impossible
+                      </span>
+                    )}
+                    {!isMe && !isLast && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="clay-sm ml-auto rounded-2xl border-0 bg-muted font-bold text-destructive"
+                        disabled={busyId === a.userId}
+                        onClick={() =>
+                          submitDemotion({ userId: a.userId, email: a.email })
+                        }
+                      >
+                        {busyId === a.userId ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : null}
+                        Retirer le rôle
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
             Journal des actions
@@ -332,6 +407,9 @@ function AdminsPanel() {
 export default function Admin() {
   const navigate = useNavigate();
   const role = useQuery(api.admin.myRole);
+  // Identifiant du compte connecté : permet au panneau de repérer "vous"
+  // (l'auto-retrait est refusé côté serveur, on masque donc le bouton).
+  const me = useQuery(api.users.currentUser);
   // On ne souscrit la liste que si l'utilisateur est bien admin : sinon la
   // requête tournerait pour tout visiteur et lèverait une erreur côté serveur.
   const restaurateurs = useQuery(
@@ -406,7 +484,7 @@ export default function Admin() {
       </div>
 
       {/* Recherche */}
-      <AdminsPanel />
+      <AdminsPanel myUserId={me?._id ?? null} />
 
       <div className="relative mb-6 max-w-md">
         <Search className="absolute top-3 left-3 size-4 text-muted-foreground" />
