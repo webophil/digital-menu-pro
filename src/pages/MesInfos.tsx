@@ -198,6 +198,7 @@ export default function MesInfos() {
           "Abonnement résilié — vos avantages Pro restent actifs jusqu'à la fin de la période déjà payée.",
         );
       }
+      if (res?.warning) toast.info(res.warning);
     } catch (e) {
       // Résiliation refusée par Stripe (ou service injoignable) : le serveur
       // n'a rien changé, on affiche l'erreur réelle sans annoncer de succès.

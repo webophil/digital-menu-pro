@@ -92,12 +92,16 @@ export const createCheckoutSession = action({
  * depuis Mes Infos).
  *
  * Sécurité — aucun succès annoncé à tort :
- * 1. on retrouve l'abonnement Stripe (identifiant enregistré au paiement,
- *    sinon customer, sinon recherche par email chez Stripe) ;
+ * 1. l'abonnement Stripe doit être associé de façon FIABLE au compte :
+ *    identifiant/customer gravés par le webhook pour ce compte, ou metadata
+ *    user_id de l'abonnement qui le désigne explicitement. L'email seul
+ *    n'établit jamais la propriété (changement d'email non vérifié) ;
  * 2. on demande l'arrêt du renouvellement (cancel_at_period_end) ;
  * 3. le statut local n'est modifié QUE si Stripe a répondu avec succès —
  *    sinon l'erreur est propagée et Convex reste inchangé.
- * Retourne { ok, mode } :
+ * Association absente ou ambiguë (plusieurs candidats, abonnements non
+ * attribuables) → aucune modification, erreur explicite vers le support.
+ * Retourne { ok, mode, warning? } :
  *  - "period_end" : résiliation confirmée par Stripe (Pro jusqu'à l'échéance) ;
  *  - "immediate"  : Stripe confirme qu'aucun abonnement actif n'existe
  *    (statut offert par l'admin ou déjà résilié) → passage en Gratuit.
@@ -120,30 +124,19 @@ export const cancelSubscription = action({
       userId,
     });
 
-    // ---- 1. Retrouver l'abonnement Stripe ----
-    let target: StripeSubRef | null = null;
+    // ---- 1. Retrouver l'abonnement Stripe (association fiable exigée) ----
+    let resolution: Resolution | null = null;
     try {
-      if (storedId) {
-        try {
-          const existing = await stripe.subscriptions.retrieve(storedId);
-          if (isLiveStripeSub(existing)) {
-            target = { id: existing.id, customer: storedCustomer };
-          }
-        } catch (err: any) {
-          // Identifiant expiré / abonnement supprimé : on cherche plus bas.
-          if (err?.code !== "resource_missing" && err?.statusCode !== 404)
-            throw err;
-        }
-      }
-      if (!target) {
-        target = await findActiveStripeSubscription(
-          stripe,
-          storedCustomer,
-          email,
-          userId,
-        );
-      }
+      resolution = await resolveAccountStripeSubscription(stripe, {
+        storedId,
+        storedCustomer,
+        email,
+        userId,
+      });
     } catch (err) {
+      // Association ambiguë ou non prouvée : le message destine déjà le
+      // support, on ne l'enveloppe pas dans une erreur générique.
+      if (err instanceof SupportError) throw err;
       throw new Error(
         `Impossible de contacter le prestataire de paiement (${errMessage(err)}). ` +
           "Aucun changement n'a été appliqué : réessayez plus tard.",
@@ -151,10 +144,10 @@ export const cancelSubscription = action({
     }
 
     // ---- 2. Confirmer la résiliation auprès de Stripe ----
-    if (target) {
+    if (resolution) {
       let updated: Stripe.Subscription;
       try {
-        updated = await stripe.subscriptions.update(target.id, {
+        updated = await stripe.subscriptions.update(resolution.ref.id, {
           cancel_at_period_end: true,
         });
       } catch (err) {
@@ -179,24 +172,58 @@ export const cancelSubscription = action({
       // comptes antérieurs) puis le statut local "cancelling".
       await ctx.runMutation(internal.billingInternal.recordExternalIds, {
         userId,
-        externalCustomerId: target.customer ?? undefined,
-        externalSubscriptionId: target.id,
+        externalCustomerId: resolution.ref.customer ?? undefined,
+        externalSubscriptionId: resolution.ref.id,
       });
       await ctx.runMutation(internal.billingInternal.markCancelling, {
         userId,
       });
-      return { ok: true, mode: "period_end" as const };
+      // Autres abonnements vus via l'email mais non attribués : intouchés,
+      // on prévient l'utilisateur au lieu de les taire.
+      const warning =
+        resolution.unattributable > 0
+          ? `${resolution.unattributable} autre(s) abonnement(s) trouvé(s) via ` +
+            `votre email n'ont pas pu être attribués à votre compte : ils ` +
+            `restent inchangés. En cas de doute, contactez le support.`
+          : undefined;
+      return { ok: true, mode: "period_end" as const, warning };
     }
 
-    // ---- 3. Stripe confirme qu'aucun abonnement actif n'existe ----
-    // (aucun prélèvement en cours : statut offert par l'admin ou
-    // abonnement déjà résilié) → passage local en Gratuit assumé.
-    await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
-    return { ok: true, mode: "immediate" as const };
+    // ---- 3. Aucun abonnement vivant trouvé ----
+    // On ne passe en Gratuit que si l'absence de prélèvement est vérifiable :
+    // identifiants Stripe enregistrés (customer inspecté) ou statut offert
+    // par l'admin. Sinon (compte payant sans identifiant fiable, email
+    // modifié…), on bloque plutôt que d'annoncer une résiliation non prouvée.
+    if (storedId || storedCustomer || sub.source === "admin") {
+      await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
+      return { ok: true, mode: "immediate" as const, warning: undefined };
+    }
+    throw supportError(
+      "Votre compte ne comporte aucun identifiant Stripe fiable et aucun " +
+        "abonnement n'a pu être rapproché de vous avec certitude " +
+        "(ancien compte ou email modifié).",
+    );
   },
 });
 
 type StripeSubRef = { id: string; customer: string | null };
+
+/** Abonnement retenu + nombre d'autres abonnements non attribuables. */
+type Resolution = { ref: StripeSubRef; unattributable: number };
+
+/**
+ * Blocage volontaire : association abonnement/compte absente ou ambiguë.
+ * Le message est déjà destiné à l'utilisateur : rien n'a été modifié, le
+ * support tranche (contact@vlalemenu.fr).
+ */
+class SupportError extends Error {}
+
+function supportError(reason: string): SupportError {
+  return new SupportError(
+    `${reason} Par sécurité, aucun changement n'a été appliqué : ` +
+      "contactez le support à contact@vlalemenu.fr pour résolution.",
+  );
+}
 
 function errMessage(err: unknown): string {
   const msg = (err as any)?.message;
@@ -214,45 +241,112 @@ function toSubRef(s: Stripe.Subscription, fallback: string | null): StripeSubRef
   return { id: s.id, customer: customer ?? fallback };
 }
 
-/**
- * Retrouve l'abonnement Stripe actif du compte :
- * d'abord via le customer enregistré, sinon via les customers portant son
- * email (rattrapage des comptes créés avant l'enregistrement des identifiants).
- * Préférence pour l'abonnement portant la metadata user_id du compte.
- */
-async function findActiveStripeSubscription(
-  stripe: Stripe,
-  customerId: string | null,
-  email: string | null,
-  userId: string,
-): Promise<StripeSubRef | null> {
-  const pick = (subs: Stripe.Subscription[]): StripeSubRef | null => {
-    const live = subs.filter(isLiveStripeSub);
-    if (live.length === 0) return null;
-    const mine = live.find((s) => s.metadata?.user_id === userId);
-    return toSubRef(mine ?? live[0], customerId);
-  };
+/** Compte propriétaire déclaré par la metadata de l'abonnement (null si absente). */
+function ownerOf(s: Stripe.Subscription): string | null {
+  const owner = s.metadata?.user_id;
+  return typeof owner === "string" && owner.length > 0 ? owner : null;
+}
 
-  if (customerId) {
+/**
+ * Retrouve l'abonnement Stripe du compte en exigeant une association FIABLE :
+ *  1. l'identifiant gravé par le webhook pour ce compte (opposable) ;
+ *  2. sinon le customer gravé par le webhook (chaîne de confiance établie) ;
+ *  3. sinon la metadata user_id de l'abonnement, examinée sur TOUS les
+ *     clients Stripe portant l'email du compte — jamais le premier trouvé.
+ * L'email seul n'établit jamais la propriété (changement d'email non
+ * vérifié) : tout abonnement non attribuable rend le résultat ambigu →
+ * SupportError, sans aucune modification appliquée.
+ * Retourne null uniquement quand aucun abonnement vivant n'apparaît nulle part.
+ */
+async function resolveAccountStripeSubscription(
+  stripe: Stripe,
+  args: {
+    storedId: string | null;
+    storedCustomer: string | null;
+    email: string | null;
+    userId: string;
+  },
+): Promise<Resolution | null> {
+  const { storedId, storedCustomer, email, userId } = args;
+
+  // ---- 1. Identifiant enregistré pour CE compte ----
+  if (storedId) {
+    let existing: Stripe.Subscription | null = null;
+    try {
+      existing = await stripe.subscriptions.retrieve(storedId);
+    } catch (err: any) {
+      // Identifiant expiré / abonnement supprimé : on cherche plus bas.
+      if (err?.code !== "resource_missing" && err?.statusCode !== 404) throw err;
+      existing = null;
+    }
+    if (existing && isLiveStripeSub(existing)) {
+      const owner = ownerOf(existing);
+      if (owner !== null && owner !== userId)
+        throw supportError(
+          `L'abonnement enregistré sur votre compte (${storedId}) appartient ` +
+            `explicitement à un autre compte.`,
+        );
+      return { ref: toSubRef(existing, storedCustomer), unattributable: 0 };
+    }
+  }
+
+  // ---- 2. Customer enregistré (inspecté intégralement) ----
+  const recorded: Stripe.Subscription[] = [];
+  if (storedCustomer) {
     const res = await stripe.subscriptions.list({
-      customer: customerId,
+      customer: storedCustomer,
       status: "all",
       limit: 100,
     });
-    const found = pick(res.data);
-    if (found) return found;
+    recorded.push(...res.data.filter(isLiveStripeSub));
   }
+
+  // ---- 3. Email : TOUS les clients (pas de s'arrêter au premier) ----
+  const viaEmail: Stripe.Subscription[] = [];
   if (email) {
-    const customers = await stripe.customers.list({ email, limit: 5 });
+    const customers = await stripe.customers.list({ email, limit: 10 });
     for (const customer of customers.data) {
       const res = await stripe.subscriptions.list({
         customer: customer.id,
         status: "all",
         limit: 100,
       });
-      const found = pick(res.data);
-      if (found) return found;
+      viaEmail.push(...res.data.filter(isLiveStripeSub));
     }
   }
+
+  // ---- 4. Classement : association prouvée vs non attribuable ----
+  const recordedIds = new Set(recorded.map((s) => s.id));
+  const seen = new Set<string>();
+  const proven: Stripe.Subscription[] = [];
+  const unattributable: Stripe.Subscription[] = [];
+  for (const s of [...recorded, ...viaEmail]) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    const owner = ownerOf(s);
+    if (owner === userId) {
+      proven.push(s); // la metadata désigne explicitement ce compte
+    } else if (owner === null && recordedIds.has(s.id)) {
+      proven.push(s); // sous le customer que ce compte a enregistré
+    } else {
+      unattributable.push(s); // un autre compte, ou aucune preuve
+    }
+  }
+
+  if (proven.length === 1)
+    return {
+      ref: toSubRef(proven[0], storedCustomer),
+      unattributable: unattributable.length,
+    };
+  if (proven.length > 1)
+    throw supportError(
+      `Plusieurs abonnements Stripe correspondent à votre compte ` +
+        `(${proven.map((s) => s.id).join(", ")}).`,
+    );
+  if (unattributable.length > 0)
+    throw supportError(
+      `Nous avons trouvé ${unattributable.length} abonnement(s) via votre ` +
+        `email qui ne peuvent pas être attribués avec certitude à votre compte.`,
+    );
   return null;
 }
