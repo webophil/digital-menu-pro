@@ -522,7 +522,9 @@ function Pricing() {
           </Badge>
           <CardContent className="flex h-full flex-col gap-5 p-8">
             <div>
-              <h3 className="font-[Baloo_2] text-3xl font-extrabold text-[oklch(0.16_0.05_230)]">Pro</h3>
+              <h3 className="font-[Baloo_2] text-4xl font-extrabold tracking-wide text-white uppercase text-shadow-[0_2px_0_rgba(0,0,0,0.28),0_1px_4px_rgba(0,0,0,0.35)]">
+                Pro
+              </h3>
               <p className="text-sm font-semibold text-white/85">Pour grandir sans limite</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
