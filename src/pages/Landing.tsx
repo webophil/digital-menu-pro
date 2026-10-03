@@ -322,7 +322,7 @@ function Features() {
     {
       icon: <Camera className="size-6 text-white" />,
       bg: "clay-teal",
-      title: "Photos qui donnent faim",
+      title: "Des photos qui donnent faim",
       text: "Ajoutez une photo par plat. Vos clients voient exactement ce qu'ils vont commander — et se laissent tenter.",
     },
     {
@@ -335,25 +335,25 @@ function Features() {
       icon: <Palette className="size-6 text-white" />,
       bg: "clay-peach",
       title: "Une apparence à votre image",
-      text: "Couleurs, polices, fioritures, textures : personnalisez chaque détail du menu client. 8 ambiances prêtes à l'emploi ou le vôtre, en aperçu en direct.",
+      text: "Couleurs, polices, fioritures, textures : personnalisez chaque détail du menu client. 8 ambiances prêtes à l'emploi ou la vôtre, en aperçu en direct.",
     },
     {
       icon: <Languages className="size-6 text-white" />,
       bg: "clay-butter",
       title: "Traduction automatique",
-      text: "Du français vers l'anglais, l'espagnol et l'allemand (+ à venir) en un clic. Vos catégories et vos plats restent appétissants dans chaque langue.",
+      text: "Du français vers l'anglais, l'espagnol et l'allemand (+ à venir) en un clic. Vos catégories et vos plats restent appétissants dans chaque langue. Les allergènes sont également traduits.",
     },
     {
       icon: <Zap className="size-6 text-white" />,
       bg: "clay-butter",
       title: "Toujours à jour",
-      text: "Un prix change, un plat arrive en rupture ? Modifiez et le menu public est mis à jour en temps réel, sans aucune manipulation technique.",
+      text: "Un prix change, un plat arrive en rupture ? Décochez-le dans votre interface et le menu public est mis à jour en temps réel, sans manipulation technique complexe.",
     },
     {
       icon: <Smartphone className="size-6 text-white" />,
       bg: "clay-teal",
       title: "Menu client mobile",
-      text: "Une page élégante, rapide et responsive, au nom de votre établissement. Aucune app à installer, juste à scanner.",
+      text: "Une page élégante, rapide et responsive, au nom de votre établissement. Aucune app à installer, juste votre QR Code à scanner.",
     },
     {
       icon: <QrCode className="size-6 text-white" />,
@@ -365,7 +365,7 @@ function Features() {
       icon: <UtensilsCrossed className="size-6 text-white" />,
       bg: "clay-peach",
       title: "Catégories & types de menu",
-      text: "Carte, menu du jour, carte du soir, menu enfants… Organisez tout par catégories dans des onglets cliquables.",
+      text: "Carte, menu du jour, carte du soir, menu enfants… Organisez toutes vos cartes par catégories dans des onglets cliquables.",
     },
   ];
   return (
@@ -449,7 +449,7 @@ function Pricing() {
           Un prix <span className="text-primary">simple et honnête</span>
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-          Commencez gratuitement. Passez au Pro quand votre carte grandit.
+          Commencez gratuitement. Passez au PRO pour choisir l'excellence.
         </p>
       </div>
       {/* Bascule Mensuel / Annuel */}
