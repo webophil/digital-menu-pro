@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { isProSubscription } from "@/convex/plans";
 import { establishmentTypeLabel } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -178,8 +178,6 @@ function GrantProDialog({
 function AdminSetup({ isAdmin }: { isAdmin: boolean }) {
   const adminExists = useQuery(api.admin.adminExists);
   const myEmail = useQuery(api.admin.myEmail);
-  const claim = useMutation(api.admin.claimAdmin);
-  const [busy, setBusy] = useState(false);
 
   return (
     <Card className="clay-card clay mx-auto max-w-lg rounded-3xl border-0 shadow-none">
@@ -200,41 +198,19 @@ function AdminSetup({ isAdmin }: { isAdmin: boolean }) {
             Vous êtes administrateur ✓
           </p>
         ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              Connecté en tant que{" "}
-              <strong>{myEmail ?? "…"}</strong>.{" "}
-              {adminExists
-                ? "Un administrateur existe déjà : votre email doit figurer dans la variable ADMIN_EMAILS pour obtenir l'accès."
-                : "Aucun administrateur n'existe encore : le premier compte à se déclarer devient admin."}
-            </p>
-            <Button
-              className="clay-btn clay-teal h-11 rounded-2xl font-bold text-white"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await claim({});
-                  toast.success("Vous êtes maintenant administrateur !");
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Erreur");
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              {busy ? <Loader2 className="size-4 animate-spin" /> : (
-                <ShieldCheck className="size-4" />
-              )}
-              Devenir administrateur
-            </Button>
-          </>
+          <p className="text-sm text-muted-foreground">
+            Connecté en tant que <strong>{myEmail ?? "…"}</strong>.{" "}
+            {adminExists
+              ? " Aucune auto-attribution n'est possible : un administrateur existant peut vous promouvoir (compte inscrit avec email vérifié requis)."
+              : " Aucun administrateur n'existe encore : le premier admin est créé par l'exploitant via le CLI."}
+          </p>
         )}
         <p className="text-xs text-muted-foreground">
-          Configuration serveur : ajoutez les emails autorisés (séparés par des
-          virgules) dans la variable d'environnement{" "}
-          <code className="rounded bg-muted px-1.5 py-0.5 font-mono">ADMIN_EMAILS</code>{" "}
-          pour prolonger l'accès au-delà du premier administrateur.
+          Rappel exploitant — premier admin via le CLI (compte déjà inscrit,
+          email vérifié) :
+          <code className="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono">
+            npx convex run admin:internalAdminBootstrap '{'{"email":"contact@vlalemenu.fr"}'}'
+          </code>
         </p>
         <Link
           to="/dashboard"
@@ -242,6 +218,112 @@ function AdminSetup({ isAdmin }: { isAdmin: boolean }) {
         >
           ← Retour à mon espace
         </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+type AuditEntry = Doc<"adminAuditLog">;
+
+const ACTION_LABEL: Record<string, string> = {
+  bootstrap: "Premier admin (CLI)",
+  promote: "Promotion admin",
+  demote: "Retrait du rôle admin",
+  email_change: "Email admin modifié (CLI)",
+};
+
+function AdminsPanel() {
+  const promote = useMutation(api.admin.promoteToAdmin);
+  const demote = useMutation(api.admin.demoteAdmin);
+  const audit = useQuery(api.admin.listAuditLog);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submitPromotion = async () => {
+    const normalized = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      toast.error("Adresse email invalide.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await promote({ email: normalized });
+      toast.success(
+        res?.already
+          ? "Ce compte est déjà administrateur."
+          : `« ${normalized} » est maintenant administrateur.`,
+      );
+      setEmail("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="clay-card clay-flat mb-8 rounded-3xl border-0">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-[Baloo_2] text-xl">
+          <span className="clay-teal clay-sm flex size-9 items-center justify-center rounded-2xl">
+            <ShieldCheck className="size-4 text-white" />
+          </span>
+          Administrateurs
+        </CardTitle>
+        <CardDescription>
+          Promotion d'un compte déjà inscrit dont l'email est vérifié (le
+          propriétaire doit avoir validé son code de connexion après tout
+          changement d'adresse). Le dernier administrateur est protégé.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Input
+            className="clay-in h-11 min-w-56 flex-1 rounded-2xl border-0 bg-muted"
+            placeholder="email du compte à promouvoir"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <Button
+            className="clay-btn clay-teal h-11 rounded-2xl font-bold text-white"
+            disabled={busy || !email.trim()}
+            onClick={submitPromotion}
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : (
+              <ShieldCheck className="size-4" />
+            )}
+            Promouvoir admin
+          </Button>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Journal des actions
+          </p>
+          {audit === undefined ? null : audit.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aucune action enregistrée.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {audit.map((e) => (
+                <li
+                  key={e._id}
+                  className="flex flex-wrap items-center gap-2 rounded-2xl bg-muted/60 px-3 py-1.5 text-xs"
+                >
+                  <span className="font-bold">{ACTION_LABEL[e.action] ?? e.action}</span>
+                  <span className="text-muted-foreground">
+                    {e.targetEmail ?? e.targetId}
+                  </span>
+                  <span className="text-muted-foreground">
+                    par {e.actorLabel ?? "admin"} · {fmtDate(e.createdAt)}
+                  </span>
+                  {e.note && <span className="text-muted-foreground">— {e.note}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -324,6 +406,8 @@ export default function Admin() {
       </div>
 
       {/* Recherche */}
+      <AdminsPanel />
+
       <div className="relative mb-6 max-w-md">
         <Search className="absolute top-3 left-3 size-4 text-muted-foreground" />
         <Input

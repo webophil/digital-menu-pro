@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { listAdminIds } from "./admin";
 
 /** Profil du compte connecté : email, rôle, restaurant (s'il existe). */
 export const getMyProfile = query({
@@ -28,8 +29,13 @@ export const getMyProfile = query({
 
 /**
  * Change l'email du compte. L'authentification reste valable (session
- * courante inchangée) ; on met à jour authAccounts + table users pour que
- * la prochaine connexion se fasse avec le nouvel email.
+ * courante inchangée) ; on met à jour authAccounts + table users ensemble
+ * pour que la prochaine connexion se fasse avec le nouvel email.
+ *
+ * Réservé aux NON-admins : l'email d'un administrateur identifie un compte
+ * à hauts privilèges — il ne doit jamais pouvoir être remplacé sans
+ * vérification. Un admin qui change d'email passe par le support (CLI),
+ * qui met à jour users + authAccounts ensemble puis journalise l'opération.
  */
 export const updateMyEmail = mutation({
   args: { email: v.string() },
@@ -43,6 +49,11 @@ export const updateMyEmail = mutation({
 
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("Not found");
+    if (user.role === "admin") {
+      throw new Error(
+        "L'email d'un compte administrateur ne peut pas être modifié depuis le site. Contactez le support (contact@vlalemenu.fr).",
+      );
+    }
 
     // Unicité : ni chez les users, ni dans les authAccounts.
     const existing = await ctx.db
@@ -85,6 +96,19 @@ export const deleteMyAccount = mutation({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
+
+    // Le dernier administrateur ne peut pas supprimer son compte :
+    // l'application resterait sans admin (les autres ne peuvent pas non plus
+    // être révoqués, cf. demoteAdmin).
+    const user = await ctx.db.get(userId);
+    if (!user) throw new Error("Not found");
+    if (user.role === "admin") {
+      const admins = await listAdminIds(ctx);
+      if (admins.length <= 1)
+        throw new Error(
+          "Impossible : vous êtes le dernier administrateur. Créez d'abord un second admin depuis l'espace d'administration.",
+        );
+    }
 
     const sub = await ctx.db
       .query("subscriptions")

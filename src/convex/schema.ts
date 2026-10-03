@@ -185,6 +185,18 @@ const schema = defineSchema(
       photoShape: oneOf(PHOTO_SHAPE_VALUES),
       updatedAt: v.number(),
     }).index("by_restaurant", ["restaurantId"]),
+
+    // Journal des actions d'administration (rôles admin : bootstrap CLI,
+    // promotion, retrait, email d'un admin changé via le CLI)
+    adminAuditLog: defineTable({
+      action: v.string(), // "bootstrap" | "promote" | "demote" | "email_change"
+      actorId: v.optional(v.id("users")), // admin à l'origine (absent = CLI/système)
+      actorLabel: v.optional(v.string()), // "CLI" ou email de l'acteur
+      targetId: v.id("users"),
+      targetEmail: v.optional(v.string()),
+      note: v.optional(v.string()),
+      createdAt: v.number(),
+    }).index("by_created_at", ["createdAt"]),
   },
   {
     schemaValidation: false,
