@@ -446,9 +446,11 @@ export function MenuPreview({
                 onClick={() => setLang(l.code as LangCode)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-bold transition-all",
+                  // Invariable (lisibilité) : couleurs fixes hors thème —
+                  // inactif = noir sur blanc, actif = blanc sur noir.
                   lang === l.code
-                    ? "clay-btn m-accent"
-                    : "clay-in m-chip",
+                    ? "clay-btn bg-black text-white"
+                    : "clay-in bg-white text-black",
                 )}
               >
                 {l.flag} {l.code.toUpperCase()}
@@ -591,7 +593,9 @@ export function MenuPreview({
                                   return (
                                     <span
                                       key={code}
-                                      className="clay-in m-chip flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                                      // Invariable (lisibilité) : toujours icône +
+                                      // texte noir sur fond blanc, hors thème.
+                                      className="clay-in flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-black"
                                       title={allergenLabel(code, lang)}
                                     >
                                       <span>{a?.emoji}</span>
