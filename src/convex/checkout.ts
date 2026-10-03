@@ -102,8 +102,9 @@ export const createCheckoutSession = action({
  * attribuables) → aucune modification, erreur explicite vers le support.
  * Retourne { ok, mode, warning? } :
  *  - "period_end" : résiliation confirmée par Stripe (Pro jusqu'à l'échéance) ;
- *  - "immediate"  : Stripe confirme qu'aucun abonnement actif n'existe
- *    (statut offert par l'admin ou déjà résilié) → passage en Gratuit.
+ *  - "immediate"  : absence de prélèvement JUSTIFIÉE — chaîne de
+ *    facturation gravée pour le compte parcourue intégralement et vide,
+ *    statut offert par l'admin, ou compte déjà en plan Gratuit.
  */
 export const cancelSubscription = action({
   args: {},
@@ -125,7 +126,7 @@ export const cancelSubscription = action({
     });
 
     // ---- 1. Retrouver l'abonnement Stripe (association fiable exigée) ----
-    let resolution: Resolution | null = null;
+    let resolution: Resolution;
     try {
       resolution = await resolveAccountStripeSubscription(stripe, {
         storedId,
@@ -144,7 +145,7 @@ export const cancelSubscription = action({
     }
 
     // ---- 2. Confirmer la résiliation auprès de Stripe ----
-    if (resolution) {
+    if (resolution.kind === "found") {
       let updated: Stripe.Subscription;
       try {
         updated = await stripe.subscriptions.update(resolution.ref.id, {
@@ -189,24 +190,20 @@ export const cancelSubscription = action({
       return { ok: true, mode: "period_end" as const, warning };
     }
 
-    // ---- 3. Aucun abonnement vivant trouvé ----
-    // On ne passe en Gratuit que si l'absence de prélèvement est vérifiable :
-    // identifiants Stripe enregistrés (customer inspecté), statut offert par
-    // l'admin, ou compte déjà localement sans prétention payante (plan
-    // Gratuit). Sinon (plan Pro sans identifiant fiable, email modifié…),
-    // on bloque plutôt que d'annoncer une résiliation non prouvée.
-    if (
-      storedId ||
-      storedCustomer ||
-      sub.source === "admin" ||
-      sub.plan !== "pro"
-    ) {
+    // ---- 3. Conclusion d'absence du résolveur (justifiée ou non) ----
+    // Seule une chaîne de facturation gravée pour CE compte, parcourue
+    // intégralement sans abonnement vivant, prouve l'absence de prélèvement.
+    // Un ancien identifiant mort (404) ne prouve rien et n'autorise aucun
+    // succès : on ne teste plus sa simple présence. Fallbacks métier :
+    // statut offert (admin) ou compte déjà en plan Gratuit.
+    if (resolution.verified || sub.source === "admin" || sub.plan !== "pro") {
       await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
       return { ok: true, mode: "immediate" as const, warning: undefined };
     }
     throw supportError(
-      "Votre compte ne comporte aucun identifiant Stripe fiable et aucun " +
-        "abonnement n'a pu être rapproché de vous avec certitude " +
+      "Votre compte n'a aucune chaîne de facturation Stripe exploitable " +
+        "(identifiant enregistré expiré ou introuvable) et aucun abonnement " +
+        "n'a pu être rapproché de vous avec certitude " +
         "(ancien compte ou email modifié).",
     );
   },
@@ -214,8 +211,19 @@ export const cancelSubscription = action({
 
 type StripeSubRef = { id: string; customer: string | null };
 
-/** Abonnement retenu + nombre d'autres abonnements non attribuables. */
-type Resolution = { ref: StripeSubRef; unattributable: number };
+/**
+ * Verdict du résolveur :
+ *  - "found"  : cible prouvée à résilier + nombre d'autres abonnements
+ *    présents mais non attribuables à ce compte ;
+ *  - "absent" : aucun abonnement vivant trouvé. verified = les chaînes de
+ *    facturation gravées pour CE compte ont été parcourues intégralement
+ *    (toutes pages, tous statuts) et sont vides → absence justifiée.
+ *    verified = false → rien de concluant (identifiant mort/404, scan email
+ *    seul) : l'absence de prélèvement n'est PAS prouvée.
+ */
+type Resolution =
+  | { kind: "found"; ref: StripeSubRef; unattributable: number }
+  | { kind: "absent"; verified: boolean };
 
 /**
  * Blocage volontaire : association abonnement/compte absente ou ambiguë.
@@ -267,7 +275,10 @@ function ownerOf(s: Stripe.Subscription): string | null {
  * termine toujours (étapes 2 à 4) pour que deux abonnements du même compte
  * déclenchent le blocage « plusieurs abonnements » (le second resterait
  * facturé sinon).
- * Retourne null uniquement quand aucun abonnement vivant n'apparaît nulle part.
+ * Verdict d'absence explicite : { kind: "absent", verified } — verified est
+ * true seulement si une chaîne de facturation gravée pour CE compte a été
+ * parcourue intégralement sans abonnement vivant. Un identifiant mort (404)
+ * ne prouve rien : il ne fournit aucune chaîne exploitable.
  */
 async function resolveAccountStripeSubscription(
   stripe: Stripe,
@@ -277,12 +288,17 @@ async function resolveAccountStripeSubscription(
     email: string | null;
     userId: string;
   },
-): Promise<Resolution | null> {
+): Promise<Resolution> {
   const { storedId, storedCustomer, email, userId } = args;
 
   // ---- 1. Identifiant enregistré pour CE compte → candidat, PAS de décision
   // anticipée : les étapes 2 à 4 s'exécutent toujours, pour que deux
   // abonnements du même compte déclenchent le blocage doublon ----
+  // Chaînes de facturation attribuables au compte : le customer gravé et,
+  // si l'identifiant est récupérable (même expiré), celui de l'abonnement.
+  // Un 404 / resource_missing ne prouve rien : il ne fournit aucune chaîne.
+  const accountCustomers = new Set<string>();
+  if (storedCustomer) accountCustomers.add(storedCustomer);
   const recordedIdSubs: Stripe.Subscription[] = [];
   if (storedId) {
     let existing: Stripe.Subscription | null = null;
@@ -292,6 +308,10 @@ async function resolveAccountStripeSubscription(
       // Identifiant expiré / abonnement supprimé : on cherche plus bas.
       if (err?.code !== "resource_missing" && err?.statusCode !== 404) throw err;
       existing = null;
+    }
+    if (existing) {
+      const linked = toSubRef(existing, null).customer;
+      if (linked) accountCustomers.add(linked);
     }
     if (existing && isLiveStripeSub(existing)) {
       const owner = ownerOf(existing);
@@ -304,13 +324,12 @@ async function resolveAccountStripeSubscription(
     }
   }
 
-  // ---- 2. Customer enregistré (auto-pagination : toutes les pages) ----
-  // limit: 100 = taille de page maximum ; l'auto-pagination Stripe enchaîne
-  // les curseurs jusqu'à has_more = false — pas de lecture limitée à .data.
+  // ---- 2. Chaînes de facturation gravées pour CE compte (auto-pagination :
+  // toutes les pages, tous les statuts ; limit: 100 = taille de page max) ----
   const recorded: Stripe.Subscription[] = [];
-  if (storedCustomer) {
+  for (const customer of accountCustomers) {
     await stripe.subscriptions
-      .list({ customer: storedCustomer, status: "all", limit: 100 })
+      .list({ customer, status: "all", limit: 100 })
       .autoPagingEach((s) => {
         if (isLiveStripeSub(s)) recorded.push(s);
       });
@@ -356,6 +375,7 @@ async function resolveAccountStripeSubscription(
 
   if (proven.length === 1)
     return {
+      kind: "found",
       ref: toSubRef(proven[0], storedCustomer),
       unattributable: unattributable.length,
     };
@@ -369,5 +389,8 @@ async function resolveAccountStripeSubscription(
       `Nous avons trouvé ${unattributable.length} abonnement(s) via votre ` +
         `email qui ne peuvent pas être attribués avec certitude à votre compte.`,
     );
-  return null;
+  // Aucun abonnement vivant : l'absence n'est justifiée que si au moins une
+  // chaîne de facturation gravée pour CE compte a été parcourue intégralement
+  // (elles sont toutes vides, sinon on serait tombé sur un blocage ci-dessus).
+  return { kind: "absent", verified: accountCustomers.size > 0 };
 }
