@@ -86,6 +86,15 @@ export default function MesInfos() {
   const profile = useQuery(api.account.getMyProfile);
   const sub = useQuery(api.billing.getMySubscription);
   const pro = isProSubscription(sub);
+  // La vérification Stripe doit rester accessible : Pro actif, plan Pro même
+  // période expirée (webhook manqué), ou ancien compte basculé en Gratuit
+  // par une résiliation antérieure incomplète mais qui conserve encore des
+  // identifiants Stripe — c'est là que Stripe peut facturer encore.
+  const canVerifyBilling =
+    pro ||
+    sub?.plan === "pro" ||
+    Boolean(sub?.externalSubscriptionId) ||
+    Boolean(sub?.externalCustomerId);
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const updateEmail = useMutation(api.account.updateMyEmail);
@@ -182,7 +191,9 @@ export default function MesInfos() {
       ? "Retirer votre statut Pro offert ?\n\nAucun prélèvement n'est en cours : votre compte repassera immédiatement en plan Gratuit."
       : pro
         ? "Résilier votre abonnement Pro ?\n\nVous conservez tous vos avantages Pro jusqu'à la fin de la période déjà payée. À cette date, votre compte repassera automatiquement au plan Gratuit."
-        : "Résilier votre abonnement ?\n\nVotre période affichée est terminée, mais un prélèvement est peut-être encore en cours : Stripe va être vérifié et tout renouvellement sera stoppé.";
+        : sub?.plan === "pro"
+          ? "Résilier votre abonnement ?\n\nVotre période affichée est terminée, mais un prélèvement est peut-être encore en cours : Stripe va être vérifié et tout renouvellement sera stoppé."
+          : "Vérifier et résilier mon abonnement ?\n\nVotre compte est marqué Gratuit, mais un prélèvement Stripe pourrait subsister : Stripe va être vérifié et, s'il reste un abonnement actif, il sera résilié.";
     if (!confirm(confirmText)) return;
     setBusyCancel(true);
     try {
@@ -327,10 +338,10 @@ export default function MesInfos() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              {/* Le bouton de résiliation reste proposé tant que le compte est
-                  Pro localement, même période expirée (webhook manqué) : c'est
-                  précisément le cas où Stripe doit être vérifié. */}
-              {pro || sub?.plan === "pro" ? (
+              {/* Résiliation / vérification proposée dès que Stripe peut
+                  encore facturer (ou que le plan est Pro), même si la période
+                  locale est expirée ou le compte marqué Gratuit. */}
+              {canVerifyBilling ? (
                 <>
                   <Button
                     variant="outline"

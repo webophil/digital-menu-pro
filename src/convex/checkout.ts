@@ -104,7 +104,7 @@ export const createCheckoutSession = action({
  *  - "period_end" : résiliation confirmée par Stripe (Pro jusqu'à l'échéance) ;
  *  - "immediate"  : absence de prélèvement JUSTIFIÉE — chaîne de
  *    facturation gravée pour le compte parcourue intégralement et vide,
- *    statut offert par l'admin, ou compte déjà en plan Gratuit.
+ *    ou statut offert par l'admin (aucun paiement attendu).
  */
 export const cancelSubscription = action({
   args: {},
@@ -194,9 +194,10 @@ export const cancelSubscription = action({
     // Seule une chaîne de facturation gravée pour CE compte, parcourue
     // intégralement sans abonnement vivant, prouve l'absence de prélèvement.
     // Un ancien identifiant mort (404) ne prouve rien et n'autorise aucun
-    // succès : on ne teste plus sa simple présence. Fallbacks métier :
-    // statut offert (admin) ou compte déjà en plan Gratuit.
-    if (resolution.verified || sub.source === "admin" || sub.plan !== "pro") {
+    // succès ; le statut local (plan Gratuit) n'est PAS une preuve non plus :
+    // d'anciens comptes ont été basculés en Gratuit sans que Stripe soit
+    // arrêté. Rapprochement incertain → recours au support.
+    if (resolution.verified || sub.source === "admin") {
       await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
       return { ok: true, mode: "immediate" as const, warning: undefined };
     }
