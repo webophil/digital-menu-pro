@@ -567,11 +567,11 @@ function Faq() {
   const qa = [
     {
       q: "Mes clients doivent-ils installer une application ?",
-      a: "Non. Ils scannent le QR code affiché sur table et votre menu s'ouvre directement dans leur navigateur, en français, anglais, espagnol ou allemand. Les titres de catégories (Entrées, Plats…) sont traduits avec les plats.",
+      a: "Non. Ils scannent le QR code affiché sur table et votre menu s'ouvre directement dans leur navigateur, en français, anglais, espagnol, allemand, etc... Faites un test avec le Menu Démo proposé en haut de cette page !",
     },
     {
       q: "Comment fonctionne la traduction automatique ?",
-      a: "Vous rédigez vos plats en français, puis cliquez sur « Traduire ». Nos modèles traduisent les titres de catégories, noms et descriptions vers l'anglais, l'espagnol et l'allemand, avec un vocabulaire culinaire naturel. Inclus dans le plan Pro.",
+      a: "Vous rédigez vos plats en français, puis cliquez sur « Traduire ». Nos modèles traduisent les titres de catégories, noms et descriptions vers l'anglais, l'espagnol et l'allemand -autres langues à venir-, avec un vocabulaire culinaire naturel. Inclus dans le plan PRO.",
     },
     {
       q: "L'affichage des allergènes est-il conforme ?",
@@ -583,7 +583,7 @@ function Faq() {
     },
     {
       q: "Le plan gratuit est-il vraiment gratuit ?",
-      a: "Oui : 1 menu, une photo par plat, les 14 allergènes et le QR code imprimable, sans limite de durée et sans carte bancaire. La traduction automatique et les menus illimités sont réservés au plan Pro.",
+      a: "Oui : 1 menu, une photo par plat, les 14 allergènes et le QR code imprimable, sans limite de durée et sans carte bancaire. La traduction automatique, la personnalisation avancée et les menus illimités sont réservés au plan PRO.",
     },
   ];
   const [open, setOpen] = useState(0);
