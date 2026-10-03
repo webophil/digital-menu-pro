@@ -525,7 +525,7 @@ function Pricing() {
               <h3 className="font-[Baloo_2] text-4xl font-extrabold tracking-wide text-white uppercase text-shadow-[0_2px_0_rgba(0,0,0,0.28),0_1px_4px_rgba(0,0,0,0.35)]">
                 Pro
               </h3>
-              <p className="text-sm font-semibold text-white/85">Pour grandir sans limite</p>
+              <p className="text-sm font-semibold text-black">100 % à votre image et Multilingue</p>
             </div>
             <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
               {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
