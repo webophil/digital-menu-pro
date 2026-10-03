@@ -10,7 +10,8 @@ import { internal } from "./_generated/api";
  * Événements traités :
  * - checkout.session.completed : premier paiement (metadata user_id/cycle)
  * - invoice.paid / invoice.payment_failed : renouvellements et échecs
- * - customer.subscription.updated (cancel_at_period_end) : résiliation programmée
+ * - customer.subscription.created / .updated : identifiants Stripe enregistrés
+ *   (externalCustomerId / externalSubscriptionId) + résiliation programmée
  * - customer.subscription.deleted : fin effective (passage en Gratuit)
  */
 export const paymentWebhook = httpAction(async (ctx, request) => {
@@ -103,11 +104,31 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
           userId,
           periodEnd: undefined,
           cycle: undefined,
+          externalCustomerId: idOf(object?.customer),
+          externalSubscriptionId: idOf(object?.subscription),
+          source: "checkout",
+        });
+        break;
+      }
+
+      case "customer.subscription.created": {
+        // Enregistre les identifiants Stripe (customer + subscription) :
+        // indispensables à la résiliation depuis le tableau de bord.
+        await ctx.runMutation(internal.billingInternal.recordExternalIds, {
+          userId,
+          externalCustomerId: idOf(object?.customer),
+          externalSubscriptionId: idOf(object?.id),
         });
         break;
       }
 
       case "customer.subscription.updated": {
+        // Identifiants toujours rejoués (rattrapage des comptes antérieurs).
+        await ctx.runMutation(internal.billingInternal.recordExternalIds, {
+          userId,
+          externalCustomerId: idOf(object?.customer),
+          externalSubscriptionId: idOf(object?.id),
+        });
         // Résiliation programmée depuis le tableau de bord Stripe :
         // les avantages Pro durent jusqu'à la fin de la période payée.
         if (object?.cancel_at_period_end === true) {
@@ -115,10 +136,21 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
             userId,
           });
         }
+        if (object?.status === "canceled") {
+          // Abonnement stoppé immédiatement côté Stripe : on aligne le compte.
+          await ctx.runMutation(internal.billingInternal.setPlanFree, {
+            userId,
+          });
+        }
         break;
       }
 
       case "customer.subscription.deleted": {
+        await ctx.runMutation(internal.billingInternal.recordExternalIds, {
+          userId,
+          externalCustomerId: idOf(object?.customer),
+          externalSubscriptionId: idOf(object?.id),
+        });
         await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
         break;
       }
@@ -137,6 +169,17 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
   });
 });
 
+/**
+ * Identifiant Stripe d'un champ qui peut être une chaîne ("sub_123") ou un
+ * objet dé-normalisé ({ id: "sub_123" }) selon la version de l'API Stripe.
+ */
+function idOf(value: any): string | undefined {
+  if (typeof value === "string" && value.length > 0) return value;
+  if (value && typeof value === "object" && typeof value.id === "string")
+    return value.id;
+  return undefined;
+}
+
 async function activate(
   ctx: any,
   userId: string,
@@ -144,10 +187,18 @@ async function activate(
   periodEnd: number,
   object: any,
 ) {
+  // Enregistre les identifiants Stripe : sans eux, aucune résiliation
+  // côté serveur n'est possible (cf. checkout.cancelSubscription).
   await ctx.runMutation(internal.billingInternal.setPlanPro, {
     userId,
     periodEnd,
     cycle,
+    externalCustomerId: idOf(object?.customer),
+    externalSubscriptionId:
+      idOf(object?.subscription) ??
+      idOf(object?.parent?.subscription_details?.subscription) ??
+      idOf(object?.subscription_details?.subscription),
+    source: "checkout",
   });
 
   const amountEurCents =

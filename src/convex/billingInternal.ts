@@ -179,23 +179,47 @@ export const findUserByEmail = internalQuery({
   },
 });
 
+/** Email de l'utilisateur (pour retrouver son client Stripe en secours). */
+export const getUserEmail = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
+    return user?.email ?? null;
+  },
+});
+
 export const setPlanPro = internalMutation({
   args: {
     userId: v.id("users"),
     periodEnd: v.optional(v.number()),
     cycle: v.optional(v.string()), // "monthly" | "annual"
+    // Identifiants Stripe : sans eux, la résiliation ne saurait pas
+    // quel abonnement arrêter → on les enregistre dès la première facture.
+    externalCustomerId: v.optional(v.string()),
+    externalSubscriptionId: v.optional(v.string()),
+    source: v.optional(v.string()), // "checkout" | "admin"
   },
-  handler: async (ctx, { userId, periodEnd, cycle }) => {
+  handler: async (
+    ctx,
+    { userId, periodEnd, cycle, externalCustomerId, externalSubscriptionId, source },
+  ) => {
     const sub = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
+    const ids: Record<string, string> = {};
+    if (externalCustomerId !== undefined)
+      ids.externalCustomerId = externalCustomerId;
+    if (externalSubscriptionId !== undefined)
+      ids.externalSubscriptionId = externalSubscriptionId;
+    if (source !== undefined) ids.source = source;
     if (sub) {
       await ctx.db.patch(sub._id, {
         plan: "pro",
         status: "active",
         currentPeriodEnd: periodEnd,
         updatedAt: Date.now(),
+        ...ids,
       });
     } else {
       await ctx.db.insert("subscriptions", {
@@ -204,6 +228,47 @@ export const setPlanPro = internalMutation({
         status: "active",
         currentPeriodEnd: periodEnd,
         updatedAt: Date.now(),
+        ...ids,
+      });
+    }
+  },
+});
+
+/**
+ * Enregistre (ou complète) les identifiants Stripe d'un abonnement.
+ * Utilisé par les événements subscription.* du webhook et par la
+ * résiliation, pour que le champ externalSubscriptionId ne reste jamais vide.
+ */
+export const recordExternalIds = internalMutation({
+  args: {
+    userId: v.id("users"),
+    externalCustomerId: v.optional(v.string()),
+    externalSubscriptionId: v.optional(v.string()),
+  },
+  handler: async (ctx, { userId, externalCustomerId, externalSubscriptionId }) => {
+    if (externalCustomerId === undefined && externalSubscriptionId === undefined)
+      return;
+    const patch: Record<string, string | number> = { updatedAt: Date.now() };
+    if (externalCustomerId !== undefined)
+      patch.externalCustomerId = externalCustomerId;
+    if (externalSubscriptionId !== undefined)
+      patch.externalSubscriptionId = externalSubscriptionId;
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (sub) {
+      await ctx.db.patch(sub._id, patch);
+    } else {
+      // Aucune ligne encore (événement reçu avant l'activation) : on crée
+      // une base neutre que setPlanPro / setPlanFree mettront à jour.
+      await ctx.db.insert("subscriptions", {
+        userId,
+        plan: "free",
+        status: "active",
+        updatedAt: Date.now(),
+        externalCustomerId: patch.externalCustomerId as string | undefined,
+        externalSubscriptionId: patch.externalSubscriptionId as string | undefined,
       });
     }
   },

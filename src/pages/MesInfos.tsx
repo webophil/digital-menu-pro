@@ -177,19 +177,30 @@ export default function MesInfos() {
   };
 
   const doCancel = async () => {
+    const granted = sub?.source === "admin";
     if (
       !confirm(
-        "Résilier votre abonnement Pro ?\n\nVous conservez tous vos avantages Pro jusqu'à la fin de la période déjà payée. À cette date, votre compte repassera automatiquement au plan Gratuit.",
+        granted
+          ? "Retirer votre statut Pro offert ?\n\nAucun prélèvement n'est en cours : votre compte repassera immédiatement en plan Gratuit."
+          : "Résilier votre abonnement Pro ?\n\nVous conservez tous vos avantages Pro jusqu'à la fin de la période déjà payée. À cette date, votre compte repassera automatiquement au plan Gratuit.",
       )
     )
       return;
     setBusyCancel(true);
     try {
-      await cancelSubscription({});
-      toast.success(
-        "Abonnement résilié — vos avantages Pro restent actifs jusqu'à la fin de la période déjà payée.",
-      );
+      const res = await cancelSubscription({});
+      if (res?.mode === "immediate") {
+        toast.success(
+          "Statut retiré — aucun prélèvement n'était en cours, votre compte est repassé en plan Gratuit.",
+        );
+      } else {
+        toast.success(
+          "Abonnement résilié — vos avantages Pro restent actifs jusqu'à la fin de la période déjà payée.",
+        );
+      }
     } catch (e) {
+      // Résiliation refusée par Stripe (ou service injoignable) : le serveur
+      // n'a rien changé, on affiche l'erreur réelle sans annoncer de succès.
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
       setBusyCancel(false);
@@ -298,7 +309,10 @@ export default function MesInfos() {
               </Badge>
               {pro && sub?.currentPeriodEnd && (
                 <span className="text-sm text-muted-foreground">
-                  Renouvellement le {fmtDate(sub.currentPeriodEnd)}
+                  {sub.status === "cancelling"
+                    ? "Avantages Pro jusqu'au "
+                    : "Renouvellement le "}
+                  {fmtDate(sub.currentPeriodEnd)}
                 </span>
               )}
             </div>
@@ -315,13 +329,15 @@ export default function MesInfos() {
                   <Button
                     variant="outline"
                     className="clay-sm rounded-2xl border-0 bg-card font-bold"
-                    disabled={busyCancel}
+                    disabled={busyCancel || sub?.status === "cancelling"}
                     onClick={doCancel}
                   >
                     {busyCancel ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : null}
-                    Annuler mon abonnement
+                    {sub?.status === "cancelling"
+                      ? "Résiliation en cours…"
+                      : "Annuler mon abonnement"}
                   </Button>
                   <Button asChild variant="ghost" className="rounded-2xl font-bold text-muted-foreground">
                     <Link to="/subscription">Gérer mon offre et mes factures</Link>
