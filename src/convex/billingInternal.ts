@@ -76,15 +76,25 @@ export const loadTranslateJob = internalQuery({
 });
 
 /**
- * Liste les textes à traduire : la vitrine + jusqu'à `limit` plats.
- * Utilisé par l'action translateAll (plan Pro).
+ * Liste les textes à traduire, par lots.
+ *
+ * Deux phases :
+ * - `header` : la vitrine + les titres de catégories (liste courte, tenue en
+ *   mémoire) ;
+ * - `dishes` : les plats, paginés par curseur.
+ *
+ * La pagination supprime la limite historique de 30 plats : « tout traduire »
+ * parcourt désormais TOUS les plats du restaurant. `cursor` n'est renvoyé que
+ * s'il reste des plats, ce qui rend la boucle d'appel terminale.
  */
 export const loadAllTranslateJobs = internalQuery({
   args: {
     restaurantId: v.id("restaurants"),
-    limit: v.optional(v.number()),
+    phase: v.optional(v.string()), // "header" (défaut) | "dishes"
+    cursor: v.optional(v.string()),
+    numItems: v.optional(v.number()),
   },
-  handler: async (ctx, { restaurantId, limit }) => {
+  handler: async (ctx, { restaurantId, phase, cursor, numItems }) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
 
@@ -102,38 +112,48 @@ export const loadAllTranslateJobs = internalQuery({
       );
     }
 
-    const max = Math.min(Math.max(limit ?? 30, 1), 50);
-    const dishes = await ctx.db
+    if (phase !== "dishes") {
+      const categories = await ctx.db
+        .query("categories")
+        .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurantId))
+        .collect();
+      return {
+        jobs: [
+          {
+            dishId: null,
+            categoryId: null,
+            name: restaurant.name,
+            description: restaurant.tagline ?? "",
+          },
+          // Titres de catégories (Entrées → Starters / Vorspeise…)
+          ...categories
+            .filter((c) => c.active !== false)
+            .map((c) => ({
+              dishId: null,
+              categoryId: c._id as Id<"categories">,
+              name: c.name,
+              description: "",
+            })),
+        ],
+        cursor: null,
+        isDone: true,
+      };
+    }
+
+    const size = Math.min(Math.max(numItems ?? 20, 1), 100);
+    const page = await ctx.db
       .query("dishes")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurantId))
-      .take(max);
-    const categories = await ctx.db
-      .query("categories")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurantId))
-      .collect();
+      .paginate({
+        numItems: size,
+        cursor: cursor ?? null,
+        // `published` est filtré en aval : on borne la lecture pour qu'un
+        // grand restaurant ne fasse pas exploser le coût de la requête.
+        maximumRowsRead: size * 4,
+      });
 
-    const jobs: Array<{
-      dishId: Id<"dishes"> | null;
-      categoryId: Id<"categories"> | null;
-      name: string;
-      description: string;
-    }> = [
-      {
-        dishId: null,
-        categoryId: null,
-        name: restaurant.name,
-        description: restaurant.tagline ?? "",
-      },
-      // Titres de catégories (Entrées → Starters / Vorspeise…)
-      ...categories
-        .filter((c) => c.active !== false)
-        .map((c) => ({
-          dishId: null,
-          categoryId: c._id as Id<"categories">,
-          name: c.name,
-          description: "",
-        })),
-      ...dishes
+    return {
+      jobs: page.page
         .filter((d) => d.published !== false)
         .map((d) => ({
           dishId: d._id as Id<"dishes">,
@@ -141,8 +161,9 @@ export const loadAllTranslateJobs = internalQuery({
           name: d.name,
           description: d.description ?? "",
         })),
-    ];
-    return jobs;
+      cursor: page.isDone ? null : page.continueCursor,
+      isDone: page.isDone,
+    };
   },
 });
 

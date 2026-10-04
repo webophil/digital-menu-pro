@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
   Building2,
+  Check,
   Crown,
   Loader2,
   Mail,
@@ -97,12 +98,17 @@ export default function MesInfos() {
     Boolean(sub?.externalCustomerId);
   const { signOut } = useAuth();
   const navigate = useNavigate();
-  const updateEmail = useMutation(api.account.updateMyEmail);
+  const requestEmailChange = useAction(api.accountEmailSend.requestEmailChange);
+  const confirmEmailChange = useMutation(api.accountEmail.confirmEmailChange);
+  const cancelEmailChange = useMutation(api.accountEmail.cancelEmailChange);
   const updateEstablishment = useMutation(api.account.updateEstablishment);
   const cancelSubscription = useAction(api.checkout.cancelSubscription);
   const deleteMyAccount = useMutation(api.account.deleteMyAccount);
 
   const [email, setEmail] = useState("");
+  // Changement d'email en deux étapes : demande d'un code, puis saisie.
+  const [emailCode, setEmailCode] = useState("");
+  const [emailPending, setEmailPending] = useState<string | null>(null);
   const [form, setForm] = useState<RestaurantForm>(emptyForm);
   const [initialized, setInitialized] = useState(false);
   const [busyEmail, setBusyEmail] = useState(false);
@@ -149,8 +155,43 @@ export default function MesInfos() {
     if (!email.trim() || email.trim() === profile?.email) return;
     setBusyEmail(true);
     try {
-      await updateEmail({ email: email.trim() });
-      toast.success("Email mis à jour ! Il servira à votre prochaine connexion.");
+      // Étape 1 : un code part à la nouvelle adresse. Le compte n'est pas
+      // encore modifié — l'adresse reste l'ancienne tant qu'il n'est pas saisi.
+      const res = await requestEmailChange({ email: email.trim() });
+      setEmailPending(res.email);
+      setEmailCode("");
+      toast.success(`Code envoyé à ${res.email}. Saisissez-le pour confirmer.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusyEmail(false);
+    }
+  };
+
+  const submitEmailCode = async () => {
+    if (!emailCode.trim()) return;
+    setBusyEmail(true);
+    try {
+      // Étape 2 : l'adresse n'est écrite qu'ici, une fois le code validé.
+      const res = await confirmEmailChange({ code: emailCode.trim() });
+      toast.success(
+        `Email mis à jour ! ${res.email} servira à votre prochaine connexion.`,
+      );
+      setEmailPending(null);
+      setEmailCode("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusyEmail(false);
+    }
+  };
+
+  const abortEmailChange = async () => {
+    setBusyEmail(true);
+    try {
+      await cancelEmailChange({});
+      setEmailPending(null);
+      setEmailCode("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -256,35 +297,88 @@ export default function MesInfos() {
             </CardTitle>
             <CardDescription>
               Votre email de connexion. Le modifier ne change rien à la
-              sécurité d'accès : vous restez connecté sur cet appareil.
+              sécurité d'accès : vous restez connecté sur cet appareil. Un code
+              de confirmation vous est envoyé à la nouvelle adresse avant tout
+              changement.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                className="clay-in h-11 rounded-2xl border-0 bg-muted"
-                placeholder="vous@mon-restaurant.fr"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <Button
-              className="clay-btn clay-teal w-fit rounded-2xl font-bold text-white"
-              onClick={submitEmail}
-              disabled={
-                busyEmail || !email.trim() || email.trim() === profile?.email
-              }
-            >
-              {busyEmail ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              Mettre à jour l'email
-            </Button>
+            {emailPending === null ? (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    className="clay-in h-11 rounded-2xl border-0 bg-muted"
+                    placeholder="vous@mon-restaurant.fr"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <Button
+                  className="clay-btn clay-teal w-fit rounded-2xl font-bold text-white"
+                  onClick={submitEmail}
+                  disabled={
+                    busyEmail || !email.trim() || email.trim() === profile?.email
+                  }
+                >
+                  {busyEmail ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  Recevoir un code de confirmation
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Code envoyé à{" "}
+                  <span className="font-bold break-all text-foreground">
+                    {emailPending}
+                  </span>
+                  . Saisissez-le pour confirmer votre nouvelle adresse.
+                </p>
+                <div className="grid gap-2">
+                  <Label htmlFor="email-code">Code de confirmation</Label>
+                  <Input
+                    id="email-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    className="clay-in h-11 rounded-2xl border-0 bg-muted text-center text-lg font-bold tracking-[0.4em]"
+                    placeholder="000000"
+                    value={emailCode}
+                    onChange={(e) =>
+                      setEmailCode(e.target.value.replace(/\D/g, ""))
+                    }
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    className="clay-btn clay-teal w-fit rounded-2xl font-bold text-white"
+                    onClick={submitEmailCode}
+                    disabled={busyEmail || emailCode.length !== 6}
+                  >
+                    {busyEmail ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Check className="size-4" />
+                    )}
+                    Confirmer
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="clay-sm rounded-2xl border-0 bg-card font-bold"
+                    onClick={abortEmailChange}
+                    disabled={busyEmail}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

@@ -424,6 +424,26 @@ export function findAmbiance(s: AppearanceSettings): Ambiance | null {
   );
 }
 
+/**
+ * Une config est-elle autorisée pour le plan Gratuit ?
+ *
+ * Le plan gratuit donne accès aux 3 ambiances de `FREE_AMBIANCE_IDS`, et à
+ * rien d'autre : la comparaison porte sur TOUS les champs, pas seulement
+ * l'accent et le fond. Retenir sur `accent`/`background`/`mode` laisserait
+ * passer n'importe quelle police, texture ou forme de photo sur un compte
+ * gratuit.
+ *
+ * Cette règle est la version serveur de ce que fait l'éditeur : le verrou
+ * n'est plus seulement visuel, il est appliqué à l'écriture.
+ */
+export function isAllowedFreeAppearance(s: AppearanceSettings): boolean {
+  return AMBIANCES.some(
+    (a) =>
+      FREE_AMBIANCE_IDS.includes(a.id) &&
+      APPEARANCE_KEYS.every((key) => a.settings[key] === s[key]),
+  );
+}
+
 // ---- Couleurs ----
 
 function clampByte(n: number) {

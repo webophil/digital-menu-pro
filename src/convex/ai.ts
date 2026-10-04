@@ -4,6 +4,7 @@ import { vly } from "../lib/vly-integrations";
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { PRO_TRANSLATION_LANGS } from "./plans";
 
 const LANG_NAMES: Record<string, string> = {
@@ -17,7 +18,14 @@ Translate the given text into the requested language, keeping culinary terms nat
 Reply ONLY with a JSON object with the keys: "name" and "description".
 If the description text is empty, return an empty string for "description".`;
 
-const MAX_DISHES = 30;
+/**
+ * Taille d'un lot de plats traduits par appel.
+ *
+ * L'action Convex a une durée maximale : traduire toute la carte d'un grand
+ * restaurant en un seul appel la dépasserait. On avance donc par lots, et
+ * l'appelant relance tant que `nextCursor` n'est pas nul.
+ */
+const DISHES_PER_BATCH = 20;
 
 async function translateOne(
   name: string,
@@ -88,40 +96,97 @@ export const translateContent = action({
 });
 
 /**
- * Traduit tous les contenus du restaurant : vitrine, titres de catégories
+ * Traduit TOUS les contenus du restaurant : vitrine, titres de catégories
  * et plats. Réservé au plan Pro.
+ *
+ * L'ancienne version s'arrêtait à 30 plats : les suivants restaient
+ * silencieusement non traduits. Les plats sont désormais parcourus par LOTS
+ * (pagination par curseur côté serveur) et l'appel renvoie `nextCursor`
+ * tant qu'il reste des plats : l'interface rappelle l'action en passant ce
+ * curseur jusqu'à `null`. Aucun plat n'est omis, et chaque appel reste
+ * borné — une action Convex a une durée maximale, que la traduction de
+ * toute une carte dépasserait en un seul appel.
+ *
+ * `cursor` absent = premier lot : la vitrine et les titres de catégories sont
+ * traités au passage (ils tiennent en mémoire, pas de pagination).
  */
 export const translateAll = action({
-  args: { restaurantId: v.id("restaurants") },
-  handler: async (ctx, { restaurantId }) => {
-    const jobs = await ctx.runQuery(internal.billingInternal.loadAllTranslateJobs, {
+  args: {
+    restaurantId: v.id("restaurants"),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, { restaurantId, cursor }) => {
+    let count = 0;
+
+    // 1. Premier lot : vitrine + titres de catégories, puis un lot de plats.
+    if (cursor === undefined) {
+      const header: {
+        jobs: Array<{
+          dishId: Id<"dishes"> | null;
+          categoryId: Id<"categories"> | null;
+          name: string;
+          description: string;
+        }>;
+      } = await ctx.runQuery(internal.billingInternal.loadAllTranslateJobs, {
+        restaurantId,
+        phase: "header",
+      });
+
+      for (const item of header.jobs) {
+        const patch = await translateOne(item.name, item.description);
+        if (Object.keys(patch).length === 0) continue;
+        if (item.categoryId) {
+          await ctx.runMutation(
+            internal.billingInternal.applyCategoryTranslations,
+            { categoryId: item.categoryId, patch },
+          );
+        } else {
+          await ctx.runMutation(
+            internal.billingInternal.applyRestaurantTranslations,
+            { restaurantId, patch },
+          );
+        }
+        count++;
+      }
+    }
+
+    // 2. Un lot de plats. Le curseur est rendu tel quel à l'appelant : il
+    // n'est nul que lorsque TOUS les plats ont été parcourus.
+    const batch: {
+      jobs: Array<{
+        dishId: Id<"dishes"> | null;
+        categoryId: Id<"categories"> | null;
+        name: string;
+        description: string;
+      }>;
+      cursor: string | null;
+      isDone: boolean;
+    } = await ctx.runQuery(internal.billingInternal.loadAllTranslateJobs, {
       restaurantId,
-      limit: MAX_DISHES,
+      phase: "dishes",
+      cursor,
+      numItems: DISHES_PER_BATCH,
     });
 
-    let count = 0;
-    for (const item of jobs) {
+    for (const item of batch.jobs) {
+      if (!item.dishId) continue;
       const patch = await translateOne(item.name, item.description);
       if (Object.keys(patch).length === 0) continue;
-      if (item.dishId) {
-        await ctx.runMutation(internal.billingInternal.applyDishTranslations, {
-          dishId: item.dishId,
-          patch,
-        });
-      } else if (item.categoryId) {
-        await ctx.runMutation(
-          internal.billingInternal.applyCategoryTranslations,
-          { categoryId: item.categoryId, patch },
-        );
-      } else {
-        await ctx.runMutation(
-          internal.billingInternal.applyRestaurantTranslations,
-          { restaurantId, patch },
-        );
-      }
+      await ctx.runMutation(internal.billingInternal.applyDishTranslations, {
+        dishId: item.dishId,
+        patch,
+      });
       count++;
     }
-    return { ok: true, items: count, langs: [...PRO_TRANSLATION_LANGS] };
+
+    return {
+      ok: true,
+      items: count,
+      // null = terminé. L'interface s'arrête sur cette valeur.
+      nextCursor: batch.cursor,
+      done: batch.isDone,
+      langs: [...PRO_TRANSLATION_LANGS],
+    };
   },
 });
 

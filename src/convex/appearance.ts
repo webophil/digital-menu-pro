@@ -14,8 +14,10 @@ import {
   PHOTO_SHAPE_VALUES,
   PRICE_STYLE_VALUES,
   TEXTURE_VALUES,
+  isAllowedFreeAppearance,
   oneOf,
 } from "../lib/theme";
+import { isProSubscription } from "./plans";
 
 /** Champs d'apparence (hors restaurantId / updatedAt), validés à l'écriture. */
 const appearanceArgs = {
@@ -79,6 +81,20 @@ export const saveAppearance = mutation({
       if (!HEX_RE.test(args[key])) {
         throw new Error("Couleur invalide (format attendu : #RRGGBB).");
       }
+    }
+
+    // Droit Pro vérifié côté SERVEUR, pas seulement dans l'éditeur : le
+    // verrou de l'interface ne protège rien si la mutation accepte n'importe
+    // quelle configuration. Un client non Pro ne peut enregistrer que l'une
+    // des 3 ambiances offertes.
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (!isProSubscription(sub) && !isAllowedFreeAppearance(args)) {
+      throw new Error(
+        "Le plan Gratuit permet de choisir parmi 3 ambiances. Passez au plan Pro pour personnaliser les couleurs, polices et le décor.",
+      );
     }
 
     const { restaurantId, ...settings } = args;

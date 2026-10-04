@@ -14,7 +14,8 @@ import {
 /**
  * Webhook de paiement Stripe (encaissement standard : l'exploitant est le
  * vendeur, micro-entrepreneur non assujetti à la TVA).
- * Vérifie la signature Stripe avec STRIPE_WEBHOOK_SECRET, puis met à jour
+ * Vérifie la signature Stripe avec STRIPE_WEBHOOK_SECRET — si cette variable
+ * est absente, l'événement est REFUSÉ (503) sans être traité, puis met à jour
  * le plan de l'abonné et enregistre la facture.
  *
  * Événements traités :
@@ -25,26 +26,43 @@ import {
  * - customer.subscription.deleted : fin effective (passage en Gratuit)
  */
 export const paymentWebhook = httpAction(async (ctx, request) => {
+  // Configuration incomplète = traitement refusé. Sans secret, la signature
+  // ne peut pas être vérifiée : accepter l'événement reviendrait à traiter
+  // n'importe quelle charge utile forgeable, y compris un `setPlanPro`.
+  // On répond 503 (et non 400) pour que Stripe réémette : une fois le secret
+  // restauré, les paiements manqués seront récupérés automatiquement.
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error(
+      "[webhook stripe] STRIPE_WEBHOOK_SECRET absent — événement refusé (signature invérifiable)",
+    );
+    return new Response(
+      JSON.stringify({
+        error:
+          "Webhook non configuré : STRIPE_WEBHOOK_SECRET est absent, l'événement est refusé.",
+      }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const raw = await request.text();
 
   const sig = request.headers.get("stripe-signature") ?? "";
   let event: any;
   try {
-    if (secret) {
-      // Implémentation minimale de stripe.webhooks.constructEvent
-      // (le SDK n'est pas importable dans un httpAction sans "use node").
-      const parts = sig.split(",").map((p) => p.split("="));
-      const timestamp = parts.find((p) => p[0] === "t")?.[1];
-      const v1 = parts.find((p) => p[0] === "v1")?.[1];
-      if (!timestamp || !v1) throw new Error("Signature absente");
+    // Implémentation minimale de stripe.webhooks.constructEvent
+    // (le SDK n'est pas importable dans un httpAction sans "use node").
+    const parts = sig.split(",").map((p) => p.split("="));
+    const timestamp = parts.find((p) => p[0] === "t")?.[1];
+    const v1 = parts.find((p) => p[0] === "v1")?.[1];
+    if (!timestamp || !v1) throw new Error("Signature absente");
 
-      const expected = await hmacHex(`${timestamp}.${raw}`, secret);
-      const ok =
-        timingSafeEqual(expected, v1) &&
-        Math.abs(Date.now() / 1000 - Number(timestamp)) < 300;
-      if (!ok) throw new Error("Signature invalide");
-    }
+    const expected = await hmacHex(`${timestamp}.${raw}`, secret);
+    const ok =
+      timingSafeEqual(expected, v1) &&
+      Math.abs(Date.now() / 1000 - Number(timestamp)) < 300;
+    if (!ok) throw new Error("Signature invalide");
+
     event = JSON.parse(raw);
   } catch (err) {
     return new Response(

@@ -269,8 +269,40 @@ export default function MenuEditor() {
     if (!restaurant) return;
     setTranslating(true);
     try {
-      await translate({ restaurantId: restaurant._id });
-      toast.success("Vitrine, catégories et plats traduits en EN, ES et DE !");
+      // Traduction par lots : chaque appel traite la vitrine, les catégories
+      // puis un lot de plats, et renvoie le curseur du plat suivant. On
+      // enchaîne jusqu'à `done` — l'ancienne version s'arrêtait à 30 plats et
+      // laissait la suite de la carte non traduite.
+      let total = 0;
+      let cursor: string | undefined = undefined;
+      let done = false;
+      let batches = 0;
+      const toastId = toast.loading("Traduction en cours…");
+
+      while (!done) {
+        const res = await translate({
+          restaurantId: restaurant._id,
+          cursor,
+        });
+        total += res.items ?? 0;
+        done = res.done;
+        cursor = res.nextCursor ?? undefined;
+        batches++;
+        // Garde-fou : le curseur doit progresser, sinon on sortirait du lot
+        // sans traduire la suite de la carte.
+        if (!done && cursor === undefined) break;
+        if (batches > 200) break;
+        toast.loading(`Traduction en cours… ${total} élément(s) traité(s)`, {
+          id: toastId,
+        });
+      }
+
+      toast.success(
+        total > 0
+          ? `${total} élément(s) traduit(s) en EN, ES et DE !`
+          : "Aucun nouveau texte à traduire.",
+        { id: toastId },
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {

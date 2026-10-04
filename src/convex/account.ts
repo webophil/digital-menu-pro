@@ -29,73 +29,18 @@ export const getMyProfile = query({
 });
 
 /**
- * Change l'email du compte. L'authentification reste valable (session
- * courante inchangée) ; users + authAccounts sont mis à jour ensemble pour
- * que la prochaine connexion se fasse avec le nouvel email.
+ * Le changement d'email du compte n'est PLUS accessible ici.
  *
- * SÉCURITÉ : la vérification de l'ancienne adresse ne vaut PAS pour la
- * nouvelle — emailVerificationTime est effacé ici et ne sera rétabli que
- * par Convex Auth au moment où l'utilisateur valide le code envoyé à la
- * nouvelle adresse (reconnexion par email-otp). Jusque-là, le compte reste
- * inéligible à une promotion admin (cf. admin.promoteToAdmin).
+ * Il est désormais traité par `accountEmail.ts` en deux étapes
+ * (`requestEmailChange` puis `confirmEmailChange`) : la nouvelle adresse
+ * n'est écrite qu'après validation d'un code envoyé à cette adresse.
  *
- * Réservé aux NON-admins : l'email d'un administrateur identifie un compte
- * à hauts privilèges — il ne doit jamais pouvoir être remplacé sans
- * vérification. Un admin qui change d'email passe par le support (CLI),
- * qui met à jour users + authAccounts ensemble puis journalise l'opération.
+ * L'ancienne version écrivait l'adresse immédiatement, et cherchait le
+ * compte de connexion avec le provider "email" alors que la base contient
+ * "email-otp" : le patch ne touchait jamais sa cible, si bien que l'email du
+ * profil changeait sans que l'identifiant de connexion suive — l'utilisateur
+ * perdait l'accès à son compte.
  */
-export const updateMyEmail = mutation({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) throw new Error("Not authenticated");
-    const normalized = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
-      throw new Error("Adresse email invalide.");
-    }
-
-    const user = await ctx.db.get(userId);
-    if (!user) throw new Error("Not found");
-    if (user.role === "admin") {
-      throw new Error(
-        "L'email d'un compte administrateur ne peut pas être modifié depuis le site. Contactez le support (contact@vlalemenu.fr).",
-      );
-    }
-
-    // Unicité : ni chez les users, ni dans les authAccounts.
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", normalized))
-      .first();
-    if (existing && existing._id !== userId) {
-      throw new Error("Cet email est déjà utilisé par un autre compte.");
-    }
-
-    // Identité de connexion email-otp. Le provider Convex Auth de ce projet
-    // s'appelle "email" (Email() de @convex-dev/auth), les code OTP passant
-    // par lui : on met à jour providerAccountId + secret ensemble.
-    const account = await ctx.db
-      .query("authAccounts")
-      .withIndex("userIdAndProvider", (q) =>
-        q.eq("userId", userId).eq("provider", "email"),
-      )
-      .first();
-    if (account) {
-      await ctx.db.patch(account._id, {
-        providerAccountId: normalized,
-        secret: undefined,
-      });
-    }
-
-    // users + vérification : la nouvelle adresse repart de zéro. Le flag ne
-    // sera rétabli que par la validation du code envoyé à cette adresse.
-    await ctx.db.patch(userId, {
-      email: normalized,
-      emailVerificationTime: undefined,
-    });
-    return { ok: true };
-  },
-});
 
 /**
  * Suppression définitive du compte (RGPD, art. 17 — droit à l'effacement) :

@@ -51,18 +51,33 @@ export const emailOtp = Email({
     }
 
     // Repli : service email Freebuff (template non personnalisable) —
-    // garantit que les connexions continuent de fonctionner.
+    // garantit que les connexions continuent de fonctionner quand Resend
+    // n'est pas configuré.
+    //
+    // La clé est lue dans l'environnement Convex (à saisir via l'onglet
+    // Clés/API de Freebuff) et n'est PLUS écrite dans le dépôt : une clé
+    // versionnée est exposée à tout clone du dépôt et ne peut plus être
+    // révoquée individuellement.
+    const freebuffKey = process.env.FREEBUFF_EMAIL_API_KEY;
+    if (!freebuffKey) {
+      // Ni Resend ni le repli Freebuff : on le dit explicitement plutôt que
+      // d'avaler l'échec, sinon l'utilisateur croit avoir reçu un code
+      // qui n'a jamais été envoyé.
+      throw new Error(
+        "Aucun service d'envoi d'email n'est configuré (RESEND_API_KEY ou FREEBUFF_EMAIL_API_KEY absent).",
+      );
+    }
     try {
       await axios.post(
         "https://auth.freebuff.app/send_otp",
         {
           to: email,
           otp: token,
-          appName: process.env.VLY_APP_NAME || "a freebuff.com application",
+          appName: process.env.VLY_APP_NAME || "V'la le Menu !",
         },
         {
           headers: {
-            "x-api-key": "fb_email_2crN1hqIArZP2bEfvjp5Qik4",
+            "x-api-key": freebuffKey,
           },
         },
       );
