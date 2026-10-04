@@ -169,13 +169,11 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
       case "checkout.session.completed": {
         if (object?.status === "expired") break;
         const cycle = object?.metadata?.cycle === "annual" ? "annual" : "monthly";
-        const periodEnd =
-          object?.subscription_details?.current_period_end
-            ? object.subscription_details.current_period_end * 1000
-            : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
-        const periodStart = object?.subscription_details?.current_period_start
-          ? object.subscription_details.current_period_start * 1000
-          : undefined;
+        const periodEnd = requireStripePeriodEnd(
+          periodEndFromCheckoutSession(object),
+          type,
+        );
+        const periodStart = periodStartFromCheckoutSession(object);
         await activate(ctx, userId, cycle, periodEnd, object, {
           periodStart,
           stripeInvoiceId: idOf(object?.invoice),
@@ -192,12 +190,8 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
             : object?.amount_paid >= 19000
               ? "annual"
               : "monthly";
-        const periodEnd = object?.lines?.data?.[0]?.period?.end
-          ? object.lines.data[0].period.end * 1000
-          : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
-        const periodStart = object?.lines?.data?.[0]?.period?.start
-          ? object.lines.data[0].period.start * 1000
-          : undefined;
+        const periodEnd = requireStripePeriodEnd(periodEndFromInvoice(object), type);
+        const periodStart = periodStartFromInvoice(object);
         await activate(ctx, userId, cycle, periodEnd, object, {
           periodStart,
           // invoice.paid : l'objet EST la facture, son id est la clé.
@@ -241,17 +235,23 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
         // Résiliation programmée depuis le tableau de bord Stripe :
         // les avantages Pro durent jusqu'à la fin de la période payée.
         if (object?.cancel_at_period_end === true) {
-          await ctx.runMutation(internal.billingInternal.markCancelling, {
+          await applySubscriptionState(
+            ctx,
             userId,
-            createdAtStripe,
-          });
+            idOf(object?.customer),
+            internal.billingInternal.markCancelling,
+            { userId, createdAtStripe },
+          );
         }
         if (object?.status === "canceled") {
           // Abonnement stoppé immédiatement côté Stripe : on aligne le compte.
-          await ctx.runMutation(internal.billingInternal.setPlanFree, {
+          await applySubscriptionState(
+            ctx,
             userId,
-            createdAtStripe,
-          });
+            idOf(object?.customer),
+            internal.billingInternal.setPlanFree,
+            { userId, createdAtStripe },
+          );
         }
         break;
       }
@@ -262,10 +262,13 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
           externalCustomerId: idOf(object?.customer),
           externalSubscriptionId: idOf(object?.id),
         });
-        await ctx.runMutation(internal.billingInternal.setPlanFree, {
+        await applySubscriptionState(
+          ctx,
           userId,
-          createdAtStripe,
-        });
+          idOf(object?.customer),
+          internal.billingInternal.setPlanFree,
+          { userId, createdAtStripe },
+        );
         break;
       }
 
@@ -375,6 +378,105 @@ async function activate(
 }
 
 /**
+ * Fin de période lue CHEZ Stripe, jamais calculée.
+ *
+ * Depuis l'API Stripe Basil, la période d'un abonnement vit sur ses
+ * ÉLÉMENTS (`items.data[].current_period_end`) et non plus au niveau de
+ * l'objet. On interroge donc les deux emplacements selon la forme du
+ * payload, sans jamais retomber sur `Date.now() + 30 jours` : une période
+ * inventée accordait au client une échéance que Stripe n'a jamais décidée.
+ */
+function periodEndFromCheckoutSession(object: any): number | undefined {
+  const candidates = [
+    object?.subscription_details?.current_period_end,
+    object?.subscription_details?.items?.data?.[0]?.current_period_end,
+    object?.subscription_details?.subscription_details?.current_period_end,
+  ];
+  for (const c of candidates) if (typeof c === "number") return c * 1000;
+  return undefined;
+}
+
+function periodStartFromCheckoutSession(object: any): number | undefined {
+  const candidates = [
+    object?.subscription_details?.current_period_start,
+    object?.subscription_details?.items?.data?.[0]?.current_period_start,
+  ];
+  for (const c of candidates) if (typeof c === "number") return c * 1000;
+  return undefined;
+}
+
+function periodEndFromInvoice(object: any): number | undefined {
+  const candidates = [
+    object?.lines?.data?.[0]?.period?.end,
+    object?.lines?.data?.[0]?.items?.data?.[0]?.current_period_end,
+    object?.subscription_details?.items?.data?.[0]?.current_period_end,
+    object?.subscription_details?.current_period_end,
+  ];
+  for (const c of candidates) if (typeof c === "number") return c * 1000;
+  return undefined;
+}
+
+function periodStartFromInvoice(object: any): number | undefined {
+  const candidates = [
+    object?.lines?.data?.[0]?.period?.start,
+    object?.lines?.data?.[0]?.items?.data?.[0]?.current_period_start,
+    object?.subscription_details?.items?.data?.[0]?.current_period_start,
+  ];
+  for (const c of candidates) if (typeof c === "number") return c * 1000;
+  return undefined;
+}
+
+/**
+ * Date manquante = gestion EXPLICITE : on lève. Le webhook répond alors 5xx,
+ * Stripe réémet, et l'événement n'est jamais soldé sur une période
+ * inventée. Mieux vaut un échec visible qu'un accès Pro accordé jusqu'à une
+ * échéance fausse.
+ */
+function requireStripePeriodEnd(
+  periodEnd: number | undefined,
+  type: string,
+): number {
+  if (typeof periodEnd !== "number") {
+    throw new Error(
+      `webhook: fin de période absente du payload Stripe (${type}) — ` +
+        `aucune période n'est inventée, l'événement sera repris`,
+    );
+  }
+  return periodEnd;
+}
+
+/**
+ * Applique une mutation d'état d'abonnement et surveille son verdict.
+ *
+ * `setPlanFree` / `markCancelling` peuvent refuser l'événement (`skipped` :
+ * plus ancien, ou même seconde que le dernier appliqué — donc ordre
+ * indéterminable). Ignorer ce refus solderait l'événement sans rien
+ * appliquer : la résiliation serait perdue. On réconcilie alors avec Stripe,
+ * qui fait foi. Toute impossibilité de conclure remonte en erreur, donc en
+ * 5xx, donc en reprise par Stripe.
+ */
+async function applySubscriptionState(
+  ctx: any,
+  userId: string,
+  hintCustomerId: string | undefined,
+  mutation: any,
+  args: Record<string, unknown>,
+) {
+  const result: any = await ctx.runMutation(mutation, args);
+  if (result && result.skipped === true) {
+    console.error(
+      "[webhook stripe] changement d'état écarté, réconciliation",
+      userId,
+      result.reason,
+    );
+    // Lève si la réconciliation ne peut pas conclure : l'événement ne doit
+    // pas être marqué traité sur un état inchangé.
+    await reconcileFromStripe(ctx, userId, hintCustomerId);
+  }
+  return result;
+}
+
+/**
  * Réconciliation : relit l'abonnement de CE compte chez Stripe et aligne
  * l'état local. Utilisée quand un événement a été écarté (rejeu obsolète,
  * ordre indéterminable) ou quand un paiement a échoué.
@@ -387,8 +489,12 @@ async function activate(
  *     l'identifiant d'un AUTRE utilisateur n'est jamais retenu.
  * Un abonnement ambigu (plusieurs prouvés, ou aucun attribuable) laisse
  * l'état local intact et journalise : on n'écrase rien sur une supposition.
- * Silencieuse en cas d'échec réseau/API : mieux vaut un état inchangé qu'un
- * état dégradé par une information partielle.
+ *
+ * En cas d'impossibilité de conclure — panne Stripe, configuration absente,
+ * abonnements tous attribuables à autrui, période manquante — la fonction
+ * LÈVE une erreur au lieu de renvoyer un verdict : l'appelant la propage
+ * jusqu'au chemin d'échec du webhook, qui répond 5xx et laisse Stripe
+ * réémettre. Renvoyer « rien à faire » transformerait une panne en succès.
  */
 async function reconcileFromStripe(
   ctx: any,
@@ -396,7 +502,10 @@ async function reconcileFromStripe(
   hintCustomerId?: string,
 ) {
   const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return { reconciled: false, reason: "no_secret" };
+  // Configuration absente : impossible de conclure. On lève pour que le
+  // webhook échoue et reçoive une nouvelle livraison, au lieu de solder
+  // l'événement sur un statut inventé.
+  if (!secret) throw new Error("reconciliation: STRIPE_SECRET_KEY absent");
 
   const identity: any = await ctx.runQuery(
     internal.billingInternal.getBillingIdentity,
@@ -441,20 +550,21 @@ async function reconcileFromStripe(
     // ---- Cible 1 : l'identifiant gravé pour ce compte (opposable) ----
     let storedSub: any = null;
     if (storedSubId) {
+      // Pas de `.catch` ici : une panne Stripe doit remonter, pas se
+      // déguiser en « aucun abonnement enregistré ». Seul un 404 (identifiant
+      // mort) est neutralisé, et il ne prouve rien.
       const retrieved: any = await api(
         `/subscriptions/${encodeURIComponent(storedSubId)}`,
-      ).catch(() => null);
+      );
       if (retrieved) {
         const owner = retrieved?.metadata?.user_id;
         // La metadata désigne explicitement un AUTRE compte : on n'y touche
-        // surtout pas (c'était précisément le défaut :-on retenait un
-        // abonnement appartient à quelqu'un d'autre avec force: true).
+        // surtout pas (c'était précisément le défaut : on retenait un
+        // abonnement appartenant à quelqu'un d'autre avec force: true).
         if (typeof owner === "string" && owner.length > 0 && owner !== userId) {
-          console.error(
-            "[webhook stripe] abonnement enregistré appartenant à un autre compte",
-            storedSubId,
+          throw new Error(
+            `reconciliation: abonnement enregistré ${storedSubId} appartient à un autre compte`,
           );
-          return { reconciled: false, reason: "foreign_stored_sub" };
         }
         storedSub = retrieved;
       }
@@ -466,14 +576,18 @@ async function reconcileFromStripe(
     if (idOf(storedSub?.customer)) customers.add(idOf(storedSub!.customer)!);
 
     const found = new Map<string, any>();
+    let foreignCount = 0;
     if (storedSub) found.set(storedSub.id, storedSub);
     for (const customer of customers) {
       for (const s of await listAllSubscriptions(customer)) {
         const owner = s?.metadata?.user_id;
         // Filtre d'attribution : un abonnement qui déclare un autre compte
-        // est écarté avant tout classement.
-        if (typeof owner === "string" && owner.length > 0 && owner !== userId)
+        // est écarté avant tout classement — et compté, car son absence
+        // ne prouve pas que CE compte n'a pas d'abonnement.
+        if (typeof owner === "string" && owner.length > 0 && owner !== userId) {
+          foreignCount++;
           continue;
+        }
         if (!found.has(s.id)) found.set(s.id, s);
       }
     }
@@ -483,8 +597,20 @@ async function reconcileFromStripe(
     );
 
     if (live.length === 0) {
-      // Aucun abonnement vivant parmi les chaînes attribuables à ce compte :
-      // on aligne sur Gratuit (avec force : l'état vient d'être lu chez Stripe).
+      // DISTINCTION ESSENTIELLE : « absence vérifiée » ≠ « impossible
+      // d'attribuer ». On ne peut aligner sur Gratuit que si une chaîne de
+      // facturation gravée pour CE compte a été parcourue INTÉGRALEMENT et
+      // n'a rien donné. Si les seuls abonnements trouvés appartiennent
+      // explicitement à d'autres comptes, ou si aucune chaîne n'est
+      // attribuable, on ne prouve RIEN : aucune écriture, et l'erreur
+      // remonte pour que l'événement soit repris.
+      const chainScanned = customers.size > 0;
+      if (!chainScanned || foreignCount > 0) {
+        throw new Error(
+          `reconciliation: absence non vérifiée pour ce compte ` +
+            `(chaînes=${customers.size}, abonnements d'autres comptes=${foreignCount})`,
+        );
+      }
       await ctx.runMutation(internal.billingInternal.setPlanFree, {
         userId,
         force: true,
@@ -493,12 +619,13 @@ async function reconcileFromStripe(
     }
 
     if (live.length > 1) {
-      // Ambigu : plusieurs abonnements prouvés. Rien n'est écrit.
-      console.error(
-        "[webhook stripe] réconciliation ambiguë, état inchangé",
-        live.map((s) => s.id),
+      // Ambigu : plusieurs abonnements prouvés. Rien n'est écrit, et
+      // l'erreur remonte (l'événement ne doit pas être soldé).
+      throw new Error(
+        `reconciliation: plusieurs abonnements attribuables (${live
+          .map((s) => s.id)
+          .join(", ")})`,
       );
-      return { reconciled: false, reason: "multiple_subscriptions" };
     }
 
     const sub = live[0];
@@ -518,18 +645,37 @@ async function reconcileFromStripe(
 
     const active =
       status === "active" || status === "trialing" || status === "past_due";
-    if (!active) return { reconciled: false, reason: `status_${status}` };
+    if (!active)
+      throw new Error(`reconciliation: statut Stripe non concluant (${status})`);
 
+    const firstItem: any = Array.isArray(sub?.items?.data)
+      ? sub.items.data[0]
+      : undefined;
     const cycle =
       sub?.metadata?.cycle === "annual" ||
-      (Array.isArray(sub?.items?.data) &&
-        Number(sub.items.data[0]?.price?.unit_amount ?? 0) >= 19000)
+      Number(firstItem?.price?.unit_amount ?? 0) >= 19000
         ? "annual"
         : "monthly";
-    // Période réelle lue chez Stripe : jamais une valeur inventée.
-    const periodEnd = sub?.current_period_end
-      ? sub.current_period_end * 1000
-      : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
+
+    // Fin de période : lue chez Stripe, jamais calculée. Depuis l'API Stripe
+    // Basil, la période vit sur les ÉLÉMENTS de l'abonnement ; on lit donc
+    // `items.data[0].current_period_end` en priorité, puis l'ancien champ
+    // niveau abonnement. Aucune date n'est inventée : si Stripe ne la donne
+    // pas, on n'accorde pas de Pro « sans fin » (currentPeriodEnd absent =
+    // illimité selon le schéma) et l'erreur remonte.
+    const periodEndSec: number | undefined =
+      typeof firstItem?.current_period_end === "number"
+        ? firstItem.current_period_end
+        : typeof sub?.current_period_end === "number"
+          ? sub.current_period_end
+          : undefined;
+    if (typeof periodEndSec !== "number") {
+      throw new Error(
+        `reconciliation: fin de période absente de la réponse Stripe ` +
+          `(abonnement ${sub?.id})`,
+      );
+    }
+    const periodEnd = periodEndSec * 1000;
 
     // `force` : l'état vient d'être lu chez Stripe à l'instant, il prime sur
     // l'ancienneté de l'événement ayant déclenché la réconciliation.
@@ -550,8 +696,11 @@ async function reconcileFromStripe(
     }
     return { reconciled: true, plan: "pro", subscriptionId: sub.id };
   } catch (err) {
+    // On ne transforme PLUS une panne en succès : l'erreur est journalisée
+    // puis relancée. Le `catch` du webhook la convertira en échec d'événement
+    // (5xx + `failStripeEvent`), donc Stripe réémettra.
     console.error("[webhook stripe] réconciliation impossible", err);
-    return { reconciled: false, reason: "stripe_error" };
+    throw err;
   }
 }
 
