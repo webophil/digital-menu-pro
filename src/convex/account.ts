@@ -158,7 +158,7 @@ export const deleteMyAccount = mutation({
             .collect();
           for (const d of dishes) {
             await ctx.db.delete(d._id);
-            await purgePhotoFiles(ctx, d.photos ?? []);
+            await purgePhotoFiles(ctx, userId, d.photos ?? []);
           }
           await ctx.db.delete(cat._id);
         }

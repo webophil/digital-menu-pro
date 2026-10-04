@@ -69,9 +69,17 @@ async function requireOwnedDish(ctx: { db: any }, dishId: any, userId: any) {
   return dish;
 }
 
-/** Supprime du stockage les photos WebP d'un plat (après retrait du document). */
-async function purgePhotos(ctx: { storage: any }, photos?: string[]) {
-  await purgePhotoFiles(ctx as any, photos as any);
+/**
+ * Supprime du stockage les photos WebP d'un plat (après retrait du document).
+ * `userId` est transmis pour que `purgePhotoFiles` vérifie la propriété de
+ * chaque fichier avant de l'effacer.
+ */
+async function purgePhotos(
+  ctx: { db: any; storage: any },
+  userId: any,
+  photos?: string[],
+) {
+  await purgePhotoFiles(ctx as any, userId, photos as any);
 }
 
 // ---------- Lectures ----------
@@ -346,7 +354,7 @@ export const deleteMenu = mutation({
         .collect();
       for (const d of dishes) {
         await ctx.db.delete(d._id);
-        await purgePhotos(ctx, d.photos);
+        await purgePhotos(ctx, userId, d.photos);
       }
       await ctx.db.delete(cat._id);
     }
@@ -421,7 +429,7 @@ export const deleteCategory = mutation({
       .collect();
     for (const d of dishes) {
       await ctx.db.delete(d._id);
-      await purgePhotos(ctx, d.photos);
+      await purgePhotos(ctx, userId, d.photos);
     }
     await ctx.db.delete(categoryId);
   },
@@ -489,7 +497,7 @@ export const deleteDish = mutation({
     const dish = await requireOwnedDish(ctx, dishId, userId);
     if (!dish) throw new Error("Not found");
     await ctx.db.delete(dishId);
-    await purgePhotos(ctx, dish.photos);
+    await purgePhotos(ctx, userId, dish.photos);
   },
 });
 

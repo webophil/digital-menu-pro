@@ -99,20 +99,56 @@ async function findDishReferencing(
 /**
  * Supprime du stockage les fichiers d'un plat et leurs fiches de propriété.
  * Utilisé par les autres modules (restaurants.ts, account.ts).
+ *
+ * Cette fonction est atteinte par les suppressions en cascade (plat,
+ * catégorie, menu, compte) : elle vérifie donc elle aussi la propriété de
+ * chaque fichier avant `storage.delete`. Sans ce contrôle, un identifiant de
+ * stockage public aurait suffi à supprimer la photo d'un autre restaurant.
+ *
+ * Un fichier encore référencé par un autre plat n'est jamais effacé : le
+ * stockage est partagé entre plats, on ne purge que ce que plus rien ne
+ * référence (une photo mutualisée survit à la suppression d'un seul plat).
+ *
+ * Renvoie les fichiers réellement effacés et ceux préservés.
  */
 export async function purgePhotoFiles(
   ctx: { db: any; storage: any },
+  userId: Id<"users">,
   photos?: Id<"_storage">[],
 ) {
+  const purged: Id<"_storage">[] = [];
+  const kept: Id<"_storage">[] = [];
+
   for (const id of photos ?? []) {
+    // 1) Propriété : jamais le fichier d'un autre compte.
     const file = await findPhotoFile(ctx, id);
+    if (file && file.ownerId !== userId) {
+      kept.push(id);
+      continue;
+    }
+
+    // 2) Partage : si un autre plat référence encore ce fichier (même resto ou
+    //    pas), on conserve le fichier et sa fiche de propriété.
+    const otherRef = await findDishReferencing(ctx, id);
+    if (otherRef) {
+      kept.push(id);
+      continue;
+    }
+
+    // 3) Purge : plus rien ne référence le fichier.
+    //    Fiche existante -> supprimée avec le fichier ; fichier legacy sans
+    //    fiche -> on efface directement, inutile d'en créer une pour un
+    //    fichier qui disparaît.
     if (file) await ctx.db.delete(file._id);
     try {
       await ctx.storage.delete(id);
+      purged.push(id);
     } catch {
       // déjà supprimé : ignorer
     }
   }
+
+  return { purged, kept };
 }
 
 /**
