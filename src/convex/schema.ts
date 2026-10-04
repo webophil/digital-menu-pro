@@ -186,6 +186,17 @@ const schema = defineSchema(
       updatedAt: v.number(),
     }).index("by_restaurant", ["restaurantId"]),
 
+    // Propriété des fichiers photo dans le stockage. Les identifiants de
+    // stockage étant publics (ils apparaissent dans les URL /api/storage/...),
+    // la seule possession d'un plat ne suffit pas : chaque fichier est
+    // rattaché au compte qui l'a mis en ligne, et seul ce compte peut
+    // l'attacher à un plat ou le supprimer du stockage.
+    photoFiles: defineTable({
+      storageId: v.id("_storage"),
+      ownerId: v.id("users"),
+      createdAt: v.number(),
+    }).index("by_storage", ["storageId"]),
+
     // Journal des actions d'administration (rôles admin : bootstrap CLI,
     // promotion, retrait, email d'un admin changé via le CLI)
     adminAuditLog: defineTable({

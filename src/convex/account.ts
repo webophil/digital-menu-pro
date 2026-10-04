@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { listAdminIds, logAdminAction } from "./admin";
+import { purgePhotoFiles } from "./photos";
 
 /** Profil du compte connecté : email, rôle, restaurant (s'il existe). */
 export const getMyProfile = query({
@@ -157,13 +158,7 @@ export const deleteMyAccount = mutation({
             .collect();
           for (const d of dishes) {
             await ctx.db.delete(d._id);
-            for (const photoId of d.photos ?? []) {
-              try {
-                await ctx.storage.delete(photoId);
-              } catch {
-                // déjà supprimée : ignorer
-              }
-            }
+            await purgePhotoFiles(ctx, d.photos ?? []);
           }
           await ctx.db.delete(cat._id);
         }

@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { purgePhotoFiles } from "./photos";
 import { PLANS, isProSubscription } from "./plans";
 
 const SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
@@ -70,13 +71,7 @@ async function requireOwnedDish(ctx: { db: any }, dishId: any, userId: any) {
 
 /** Supprime du stockage les photos WebP d'un plat (après retrait du document). */
 async function purgePhotos(ctx: { storage: any }, photos?: string[]) {
-  for (const id of photos ?? []) {
-    try {
-      await ctx.storage.delete(id as any);
-    } catch {
-      // déjà supprimé : ignorer
-    }
-  }
+  await purgePhotoFiles(ctx as any, photos as any);
 }
 
 // ---------- Lectures ----------
