@@ -4,6 +4,14 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { isProSubscription } from "./plans";
 
+/**
+ * Durée de réservation d'un événement Stripe. Une tentative qui dépasse ce
+ * délai est considérée morte : la suivante peut reprendre l'événement.
+ * Large devant le temps d'un traitement normal, court devant la fenêtre de
+ * redelivery de Stripe (~3 jours).
+ */
+const STRIPE_EVENT_LEASE_MS = 60_000;
+
 /** Charge les textes à traduire et vérifie le plan Pro (server-side). */
 export const loadTranslateJob = internalQuery({
   args: {
@@ -198,16 +206,50 @@ export const setPlanPro = internalMutation({
     externalCustomerId: v.optional(v.string()),
     externalSubscriptionId: v.optional(v.string()),
     source: v.optional(v.string()), // "checkout" | "admin"
+    // Date de création de l'événement Stripe (secondes). Une ré-application
+    // plus ancienne que `lastStripeEventCreatedAt` est ignorée.
+    createdAtStripe: v.optional(v.number()),
+    // Force l'écriture malgré l'ancienneté : réservé aux chemins de
+    // réconciliation, où l'état vient d'être lu chez Stripe.
+    force: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
-    { userId, periodEnd, cycle, externalCustomerId, externalSubscriptionId, source },
+    {
+      userId,
+      periodEnd,
+      cycle,
+      externalCustomerId,
+      externalSubscriptionId,
+      source,
+      createdAtStripe,
+      force,
+    },
   ) => {
     const sub = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
-    const ids: Record<string, string> = {};
+
+    // Garde d'ancienneté : un rejeu d'événement ancien ne doit pas rallumer
+    // un abonnement résilié depuis. Exemple : un paiement active le Pro, son
+    // traitement échoue, une résiliation intervient, puis Stripe rejoue le
+    // paiement — sans cette garde, le compte repassait Pro actif.
+    // `lastStripeEventCreatedAt` = dernier événement appliqué à ce compte.
+    if (!force && createdAtStripe !== undefined && sub) {
+      const applied = sub.lastStripeEventCreatedAt;
+      if (typeof applied === "number" && createdAtStripe < applied) {
+        return {
+          skipped: true,
+          reason: "stale_event" as const,
+          lastStripeEventCreatedAt: applied,
+        };
+      }
+    }
+
+    const ids: Record<string, string | number> = {};
+    if (createdAtStripe !== undefined)
+      ids.lastStripeEventCreatedAt = createdAtStripe;
     if (externalCustomerId !== undefined)
       ids.externalCustomerId = externalCustomerId;
     if (externalSubscriptionId !== undefined)
@@ -280,34 +322,58 @@ export const recordExternalIds = internalMutation({
  * Le webhook customer.subscription.deleted fera ensuite le passage en Gratuit.
  */
 export const markCancelling = internalMutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: {
+    userId: v.id("users"),
+    createdAtStripe: v.optional(v.number()),
+  },
+  handler: async (ctx, { userId, createdAtStripe }) => {
     const sub = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
     if (sub) {
-      await ctx.db.patch(sub._id, {
+      const patch: Record<string, string | number> = {
         status: "cancelling",
         updatedAt: Date.now(),
-      });
+      };
+      // La résiliation fait avancer le fil d'ancienneté : sans cela, un
+      // paiement plus ancien rejoué ensuite rallumait le Pro.
+      if (
+        createdAtStripe !== undefined &&
+        (typeof sub.lastStripeEventCreatedAt !== "number" ||
+          createdAtStripe > sub.lastStripeEventCreatedAt)
+      ) {
+        patch.lastStripeEventCreatedAt = createdAtStripe;
+      }
+      await ctx.db.patch(sub._id, patch);
     }
   },
 });
 
 export const setPlanFree = internalMutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: {
+    userId: v.id("users"),
+    createdAtStripe: v.optional(v.number()),
+  },
+  handler: async (ctx, { userId, createdAtStripe }) => {
     const sub = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
     if (sub) {
-      await ctx.db.patch(sub._id, {
+      const patch: Record<string, string | number> = {
         plan: "free",
         status: "cancelled",
         updatedAt: Date.now(),
-      });
+      };
+      if (
+        createdAtStripe !== undefined &&
+        (typeof sub.lastStripeEventCreatedAt !== "number" ||
+          createdAtStripe > sub.lastStripeEventCreatedAt)
+      ) {
+        patch.lastStripeEventCreatedAt = createdAtStripe;
+      }
+      await ctx.db.patch(sub._id, patch);
     }
   },
 });
@@ -366,72 +432,128 @@ export const recordInvoice = internalMutation({
  * danger car `recordInvoice` est lui-même idempotent.
  */
 export const beginStripeEvent = internalMutation({
-  args: { eventId: v.string(), type: v.string() },
-  handler: async (ctx, { eventId, type }) => {
+  args: {
+    eventId: v.string(),
+    type: v.string(),
+    createdAtStripe: v.optional(v.number()),
+  },
+  handler: async (ctx, { eventId, type, createdAtStripe }) => {
+    const now = Date.now();
     const existing = await ctx.db
       .query("stripeEvents")
       .withIndex("by_event_id", (q) => q.eq("eventId", eventId))
       .unique();
 
-    if (existing && existing.status === "processed") {
-      return { duplicate: true, attempts: existing.attempts };
-    }
+    const duplicate = { duplicate: true as const, leaseToken: null, attempts: 0 };
+    const denied = {
+      duplicate: true as const,
+      inFlight: true as const,
+      leaseToken: null,
+      attempts: 0,
+    };
 
     if (existing) {
+      // Déjà soldé : rien à refaire, quelle que soit la tentative.
+      if (existing.status === "processed") {
+        return { ...duplicate, attempts: existing.attempts };
+      }
+
+      // Réservation encore valide : une autre tentative traite l'événement.
+      // On refuse, sinon deux treatments concurrents s'exécuteraient.
+      const leaseAlive =
+        existing.status === "processing" &&
+        typeof existing.leaseExpiresAt === "number" &&
+        existing.leaseExpiresAt > now;
+      if (leaseAlive) {
+        return { ...denied, attempts: existing.attempts };
+      }
+
+      // Réservation expirée (tentative interrompue) ou tentative précédente
+      // en échec : on reprend la main avec un nouveau jeton.
+      const leaseToken = crypto.randomUUID();
       await ctx.db.patch(existing._id, {
         status: "processing",
         attempts: existing.attempts + 1,
         lastError: undefined,
-        receivedAt: Date.now(),
+        receivedAt: now,
+        leaseToken,
+        leaseExpiresAt: now + STRIPE_EVENT_LEASE_MS,
+        createdAtStripe: createdAtStripe ?? existing.createdAtStripe,
       });
-      return { duplicate: false, attempts: existing.attempts + 1 };
+      return { duplicate: false, leaseToken, attempts: existing.attempts + 1 };
     }
 
+    const leaseToken = crypto.randomUUID();
     await ctx.db.insert("stripeEvents", {
       eventId,
       type,
       status: "processing",
       attempts: 1,
-      receivedAt: Date.now(),
+      receivedAt: now,
+      leaseToken,
+      leaseExpiresAt: now + STRIPE_EVENT_LEASE_MS,
+      createdAtStripe,
     });
-    return { duplicate: false, attempts: 1 };
+    return { duplicate: false, leaseToken, attempts: 1 };
   },
 });
 
-/** Marque l'événement comme traité (aucune reprise possible). */
+/**
+ * Marque l'événement comme traité. Seul le détenteur du jeton peut clore
+ * l'événement : une livraison concurrente (ou une tentative expirée) est
+ * ignorée au lieu d'écraser le résultat d'une autre.
+ */
 export const completeStripeEvent = internalMutation({
-  args: { eventId: v.string() },
-  handler: async (ctx, { eventId }) => {
+  args: { eventId: v.string(), leaseToken: v.string() },
+  handler: async (ctx, { eventId, leaseToken }) => {
     const existing = await ctx.db
       .query("stripeEvents")
       .withIndex("by_event_id", (q) => q.eq("eventId", eventId))
       .unique();
-    if (!existing) return { found: false };
+    if (!existing) return { found: false, owned: false };
+    // Déjà soldé par une tentative plus récente : on ne touche à rien.
+    if (existing.status === "processed") return { found: true, owned: false };
+    if (existing.leaseToken !== leaseToken)
+      return { found: true, owned: false };
+
     await ctx.db.patch(existing._id, {
       status: "processed",
       processedAt: Date.now(),
       lastError: undefined,
+      leaseToken: undefined,
+      leaseExpiresAt: undefined,
     });
-    return { found: true };
+    return { found: true, owned: true };
   },
 });
 
 /**
  * Marque l'événement en échec. Le webhook répond alors 5xx : Stripe réémet
  * l'événement, qui sera retenté jusqu'à `maxAttempts`.
+ *
+ * Le jeton est exigé : sans lui, un traitement lent qui échoue tardivement
+ * pourrait faire repasser en `failed` un événement déjà `processed` par une
+ * tentative plus récente.
  */
 export const failStripeEvent = internalMutation({
-  args: { eventId: v.string(), error: v.string() },
-  handler: async (ctx, { eventId, error }) => {
+  args: { eventId: v.string(), error: v.string(), leaseToken: v.string() },
+  handler: async (ctx, { eventId, error, leaseToken }) => {
     const existing = await ctx.db
       .query("stripeEvents")
       .withIndex("by_event_id", (q) => q.eq("eventId", eventId))
       .unique();
-    if (!existing) return { found: false };
+    if (!existing) return { found: false, owned: false };
+    if (existing.status === "processed")
+      return { found: true, owned: false };
+    if (existing.leaseToken !== leaseToken)
+      return { found: true, owned: false };
+
     await ctx.db.patch(existing._id, {
       status: "failed",
       lastError: error.slice(0, 500),
+      leaseToken: undefined,
+      leaseExpiresAt: undefined,
     });
-    return { found: true };
+    return { found: true, owned: true };
   },
 });

@@ -130,6 +130,10 @@ const schema = defineSchema(
       status: v.optional(v.string()), // active | on_trial | past_due | cancelled
       provider: v.optional(v.string()), // "lemonsqueezy" | "admin"
       source: v.optional(v.string()), // "checkout" | "admin"
+      // Date de création (secondes Stripe) du dernier événement appliqué à ce
+      // compte. Un rejeu plus ancien est ignoré par setPlanPro : sans cela, un
+      // vieux paiement rejoué après une résiliation rallumait le Pro.
+      lastStripeEventCreatedAt: v.optional(v.number()),
       grantedByUserId: v.optional(v.id("users")), // si octroyé par un admin
       externalCustomerId: v.optional(v.string()),
       externalSubscriptionId: v.optional(v.string()),
@@ -160,7 +164,12 @@ const schema = defineSchema(
       .index("by_user", ["userId"])
       .index("by_stripe_invoice", ["stripeInvoiceId"]),
 
-    // Journal des événements Stripe reçus (dédoublonnage + reprise sur erreur)
+    // Journal des événements Stripe reçus (dédoublonnage + reprise sur erreur).
+    // `leaseToken` identifie la tentative propriétaire de l'événement :
+    // seule celle-là peut le solder (processed/failed), ce qui empêche une
+    // livraison concurrente de clore le travail d'une autre. `leaseExpiresAt`
+    // borne la réservation dans le temps : une tentative morte (action
+    // interrompue) est récupérable après expiration.
     stripeEvents: defineTable({
       eventId: v.string(), // event.id — unique par livraison Stripe
       type: v.string(),
@@ -169,6 +178,9 @@ const schema = defineSchema(
       lastError: v.optional(v.string()),
       receivedAt: v.number(),
       processedAt: v.optional(v.number()),
+      createdAtStripe: v.optional(v.number()), // event.created (secondes Stripe)
+      leaseToken: v.optional(v.string()),
+      leaseExpiresAt: v.optional(v.number()),
     }).index("by_event_id", ["eventId"]),
 
     // Messages du formulaire de contact (page /contact)

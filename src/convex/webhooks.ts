@@ -47,15 +47,27 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
   const object = event?.data?.object ?? {};
   const eventId: string =
     typeof event?.id === "string" ? event.id : `no-id:${type}:${Date.now()}`;
+  // event.created : horodatage Stripe de l'événement (secondes). Sert de
+  // garde d'ancienneté pour ne pas laisser un rejeu ancien écraser un
+  // changement plus récent.
+  const createdAtStripe: number | undefined =
+    typeof event?.created === "number" ? event.created : undefined;
 
   // ---- Dédoublonnage ----
   // Stripe réémet un événement en cas de non-réponse 2xx et peut livrer le
-  // même événement en double : on ne traite chaque `event.id` qu'une fois.
-  let claim: { duplicate: boolean };
+  // même événement en double : on ne traite chaque `event.id` qu'une fois,
+  // et une seule tentative à la fois (réservation à expiration).
+  let claim: {
+    duplicate: boolean;
+    inFlight?: boolean;
+    leaseToken: string | null;
+    attempts: number;
+  };
   try {
     claim = await ctx.runMutation(internal.billingInternal.beginStripeEvent, {
       eventId,
       type,
+      createdAtStripe,
     });
   } catch (err) {
     console.error("[webhook stripe] journalisation impossible", eventId, err);
@@ -66,11 +78,21 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
   }
 
   if (claim.duplicate) {
-    return new Response(JSON.stringify({ received: true, duplicate: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    // Événement déjà soldé, ou déjà en cours de traitement par une autre
+    // livraison : on répond 200 sans rien refaire. Pour une réservation
+    // encore vivante, on répond 200 (et non 5xx) : le travail est déjà en
+    // cours, le faire réémettre immédiatement créerait une boucle.
+    return new Response(
+      JSON.stringify({
+        received: true,
+        duplicate: true,
+        ...(claim.inFlight ? { inFlight: true } : {}),
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
   }
+
+  const leaseToken = claim.leaseToken as string;
 
   /** Réponse finale : succès ou échec durable (Stripe retentera). */
   const finish = async (err: unknown) => {
@@ -79,13 +101,14 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
       await ctx.runMutation(internal.billingInternal.failStripeEvent, {
         eventId,
         error: message,
+        leaseToken,
       });
     } catch (logErr) {
       console.error("[webhook stripe] échec du journal", eventId, logErr);
     }
     console.error("[webhook stripe]", type, eventId, err);
     // 5xx : Stripe réémet l'événement (réessais automatiques ~3 jours).
-    // Le traitement étant idempotent (recordInvoice + guards dedup), un rejeu
+    // Le traitement étant idempotent (recordInvoice + gardes dedup), un rejeu
     // ne duplique ni facture ni abonnement.
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
@@ -123,6 +146,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
     // éviter que Stripe le réémette indéfiniment.
     await ctx.runMutation(internal.billingInternal.completeStripeEvent, {
       eventId,
+      leaseToken,
     });
     return new Response(JSON.stringify({ ok: true, ignored: type }), {
       status: 200,
@@ -145,6 +169,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
         await activate(ctx, userId, cycle, periodEnd, object, {
           periodStart,
           stripeInvoiceId: idOf(object?.invoice),
+          createdAtStripe,
         });
         break;
       }
@@ -167,6 +192,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
           periodStart,
           // invoice.paid : l'objet EST la facture, son id est la clé.
           stripeInvoiceId: idOf(object?.id),
+          createdAtStripe,
         });
         break;
       }
@@ -206,12 +232,14 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
         if (object?.cancel_at_period_end === true) {
           await ctx.runMutation(internal.billingInternal.markCancelling, {
             userId,
+            createdAtStripe,
           });
         }
         if (object?.status === "canceled") {
           // Abonnement stoppé immédiatement côté Stripe : on aligne le compte.
           await ctx.runMutation(internal.billingInternal.setPlanFree, {
             userId,
+            createdAtStripe,
           });
         }
         break;
@@ -223,7 +251,10 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
           externalCustomerId: idOf(object?.customer),
           externalSubscriptionId: idOf(object?.id),
         });
-        await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
+        await ctx.runMutation(internal.billingInternal.setPlanFree, {
+          userId,
+          createdAtStripe,
+        });
         break;
       }
 
@@ -233,6 +264,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
 
     await ctx.runMutation(internal.billingInternal.completeStripeEvent, {
       eventId,
+      leaseToken,
     });
     return await done();
   } catch (err) {
@@ -257,21 +289,41 @@ async function activate(
   cycle: "monthly" | "annual",
   periodEnd: number,
   object: any,
-  opts: { periodStart?: number; stripeInvoiceId?: string } = {},
+  opts: {
+    periodStart?: number;
+    stripeInvoiceId?: string;
+    createdAtStripe?: number;
+  } = {},
 ) {
   // Enregistre les identifiants Stripe : sans eux, aucune résiliation
   // côté serveur n'est possible (cf. checkout.cancelSubscription).
-  await ctx.runMutation(internal.billingInternal.setPlanPro, {
-    userId,
-    periodEnd,
-    cycle,
-    externalCustomerId: idOf(object?.customer),
-    externalSubscriptionId:
-      idOf(object?.subscription) ??
-      idOf(object?.parent?.subscription_details?.subscription) ??
-      idOf(object?.subscription_details?.subscription),
-    source: "checkout",
-  });
+  //
+  // Garde d'ancienneté : si un événement plus récent a déjà été appliqué à ce
+  // compte (typiquement une résiliation), on n'écrase pas son état avec ce
+  // paiement rejoué. L'état courant est alors réconcilié depuis Stripe.
+  const applied = await ctx.runMutation(
+    internal.billingInternal.setPlanPro,
+    {
+      userId,
+      periodEnd,
+      cycle,
+      externalCustomerId: idOf(object?.customer),
+      externalSubscriptionId:
+        idOf(object?.subscription) ??
+        idOf(object?.parent?.subscription_details?.subscription) ??
+        idOf(object?.subscription_details?.subscription),
+      source: "checkout",
+      createdAtStripe: opts.createdAtStripe,
+    },
+  );
+
+  if (applied && (applied as any).skipped === true) {
+    // Rejeu obsolice : l'abonnement a changé depuis cet événement. On relit
+    // l'état chez Stripe (source de vérité) au lieu d'appliquer le vieux
+    // paiement.
+    await reconcileFromStripe(ctx, userId, idOf(object?.customer));
+    return { reconciled: true };
+  }
 
   const amountEurCents =
     Number(object?.amount_paid ?? object?.amount_total ?? 0) > 0
@@ -305,6 +357,78 @@ async function activate(
         ? "Abonnement V'la le Menu ! Pro — annuel — TVA non applicable, art. 293 B du CGI / art. L. 223-3 du CIBS"
         : "Abonnement V'la le Menu ! Pro (mensuel) — TVA non applicable, art. 293 B du CGI / art. L. 223-3 du CIBS",
   });
+}
+
+/**
+ * Réconciliation : relit l'abonnement chez Stripe et aligne l'état local.
+ * Utilisée quand un rejeu ancien a été écarté — Stripe fait foi.
+ * Silencieuse en cas d'échec réseau/API : l'état local reste inchangé plutôt
+ * que d'être dégradé par une information partielle.
+ */
+async function reconcileFromStripe(
+  ctx: any,
+  userId: string,
+  customerId?: string,
+) {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) return { reconciled: false, reason: "no_secret" };
+  if (!customerId) return { reconciled: false, reason: "no_customer" };
+
+  const res = await fetch(
+    `https://api.stripe.com/v1/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=10`,
+    { headers: { Authorization: `Bearer ${secret}` } },
+  );
+  if (!res.ok) return { reconciled: false, reason: `http_${res.status}` };
+
+  const body: any = await res.json();
+  const subs: any[] = Array.isArray(body?.data) ? body.data : [];
+  if (subs.length === 0) {
+    // Abonnement introuvable ou résilié : on aligne sur Gratuit.
+    await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
+    return { reconciled: true, plan: "free" };
+  }
+
+  // Le plus récemment modifié fait foi.
+  subs.sort(
+    (a, b) => (b?.created ?? 0) - (a?.created ?? 0),
+  );
+  const sub = subs[0];
+  const status: string = sub?.status ?? "";
+
+  if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") {
+    await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
+    return { reconciled: true, plan: "free" };
+  }
+
+  const active =
+    status === "active" || status === "trialing" || status === "past_due";
+  if (!active) return { reconciled: false, reason: `status_${status}` };
+
+  const cycle =
+    (idOf(sub?.metadata?.cycle) === "annual") ||
+    (Array.isArray(sub?.items?.data) &&
+      Number(sub.items.data[0]?.price?.unit_amount ?? 0) >= 19000)
+      ? "annual"
+      : "monthly";
+  const periodEnd = sub?.current_period_end
+    ? sub.current_period_end * 1000
+    : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
+
+  // `force` : ici l'état vient d'être lu chez Stripe à l'instant, il prime
+  // sur l'ancienneté de l'événement qui a déclenché la réconciliation.
+  await ctx.runMutation(internal.billingInternal.setPlanPro, {
+    userId,
+    periodEnd,
+    cycle,
+    externalCustomerId: customerId,
+    externalSubscriptionId: idOf(sub?.id),
+    source: "checkout",
+    force: true,
+  });
+  if (sub?.cancel_at_period_end === true) {
+    await ctx.runMutation(internal.billingInternal.markCancelling, { userId });
+  }
+  return { reconciled: true, plan: "pro" };
 }
 
 async function hmacHex(payload: string, secret: string): Promise<string> {
