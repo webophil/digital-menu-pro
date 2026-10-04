@@ -1,5 +1,15 @@
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import {
+  checkoutSessionPeriodStartMs,
+  invoicePeriodEndMs,
+  invoicePeriodStartMs,
+  listAllSubscriptions,
+  resolveCheckoutPeriodEndMs,
+  stripeGetJson,
+  subscriptionCycle,
+  subscriptionPeriodEndMs,
+} from "../lib/stripeHttp";
 
 /**
  * Webhook de paiement Stripe (encaissement standard : l'exploitant est le
@@ -169,11 +179,14 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
       case "checkout.session.completed": {
         if (object?.status === "expired") break;
         const cycle = object?.metadata?.cycle === "annual" ? "annual" : "monthly";
+        // Session Checkout STANDARD : `subscription_details` est souvent
+        // absent, la période n'est disponible qu'en lisant l'abonnement chez
+        // Stripe. On va donc le chercher avant de conclure.
         const periodEnd = requireStripePeriodEnd(
-          periodEndFromCheckoutSession(object),
+          await resolveCheckoutPeriodEndMs(stripeSecret(), object),
           type,
         );
-        const periodStart = periodStartFromCheckoutSession(object);
+        const periodStart = checkoutSessionPeriodStartMs(object);
         await activate(ctx, userId, cycle, periodEnd, object, {
           periodStart,
           stripeInvoiceId: idOf(object?.invoice),
@@ -190,8 +203,8 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
             : object?.amount_paid >= 19000
               ? "annual"
               : "monthly";
-        const periodEnd = requireStripePeriodEnd(periodEndFromInvoice(object), type);
-        const periodStart = periodStartFromInvoice(object);
+        const periodEnd = requireStripePeriodEnd(invoicePeriodEndMs(object), type);
+        const periodStart = invoicePeriodStartMs(object);
         await activate(ctx, userId, cycle, periodEnd, object, {
           periodStart,
           // invoice.paid : l'objet EST la facture, son id est la clé.
@@ -378,55 +391,6 @@ async function activate(
 }
 
 /**
- * Fin de période lue CHEZ Stripe, jamais calculée.
- *
- * Depuis l'API Stripe Basil, la période d'un abonnement vit sur ses
- * ÉLÉMENTS (`items.data[].current_period_end`) et non plus au niveau de
- * l'objet. On interroge donc les deux emplacements selon la forme du
- * payload, sans jamais retomber sur `Date.now() + 30 jours` : une période
- * inventée accordait au client une échéance que Stripe n'a jamais décidée.
- */
-function periodEndFromCheckoutSession(object: any): number | undefined {
-  const candidates = [
-    object?.subscription_details?.current_period_end,
-    object?.subscription_details?.items?.data?.[0]?.current_period_end,
-    object?.subscription_details?.subscription_details?.current_period_end,
-  ];
-  for (const c of candidates) if (typeof c === "number") return c * 1000;
-  return undefined;
-}
-
-function periodStartFromCheckoutSession(object: any): number | undefined {
-  const candidates = [
-    object?.subscription_details?.current_period_start,
-    object?.subscription_details?.items?.data?.[0]?.current_period_start,
-  ];
-  for (const c of candidates) if (typeof c === "number") return c * 1000;
-  return undefined;
-}
-
-function periodEndFromInvoice(object: any): number | undefined {
-  const candidates = [
-    object?.lines?.data?.[0]?.period?.end,
-    object?.lines?.data?.[0]?.items?.data?.[0]?.current_period_end,
-    object?.subscription_details?.items?.data?.[0]?.current_period_end,
-    object?.subscription_details?.current_period_end,
-  ];
-  for (const c of candidates) if (typeof c === "number") return c * 1000;
-  return undefined;
-}
-
-function periodStartFromInvoice(object: any): number | undefined {
-  const candidates = [
-    object?.lines?.data?.[0]?.period?.start,
-    object?.lines?.data?.[0]?.items?.data?.[0]?.current_period_start,
-    object?.subscription_details?.items?.data?.[0]?.current_period_start,
-  ];
-  for (const c of candidates) if (typeof c === "number") return c * 1000;
-  return undefined;
-}
-
-/**
  * Date manquante = gestion EXPLICITE : on lève. Le webhook répond alors 5xx,
  * Stripe réémet, et l'événement n'est jamais soldé sur une période
  * inventée. Mieux vaut un échec visible qu'un accès Pro accordé jusqu'à une
@@ -443,6 +407,17 @@ function requireStripePeriodEnd(
     );
   }
   return periodEnd;
+}
+
+/** Secret Stripe de l'API (pas celui de la signature webhook). */
+function stripeSecret(): string {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) {
+    throw new Error(
+      "webhook: STRIPE_SECRET_KEY absent — impossible de lire l'abonnement chez Stripe",
+    );
+  }
+  return secret;
 }
 
 /**
@@ -515,37 +490,6 @@ async function reconcileFromStripe(
   const storedCustomer: string | null =
     identity?.externalCustomerId ?? hintCustomerId ?? null;
 
-  const auth = { Authorization: `Bearer ${secret}` };
-  const api = async (path: string): Promise<any> => {
-    const res = await fetch(`https://api.stripe.com/v1${path}`, {
-      headers: auth,
-    });
-    if (res.status === 404) return null; // identifiant mort : ne prouve rien
-    if (!res.ok)
-      throw new Error(`Stripe ${res.status} sur ${path.split("?")[0]}`);
-    return await res.json();
-  };
-
-  /** Auto-pagination : ne jamais s'arrêter à la première page. */
-  const listAllSubscriptions = async (customer: string) => {
-    const out: any[] = [];
-    let startingAfter: string | undefined;
-    do {
-      const qs = new URLSearchParams({
-        customer,
-        status: "all",
-        limit: "100",
-      });
-      if (startingAfter) qs.set("starting_after", startingAfter);
-      const body: any = await api(`/subscriptions?${qs.toString()}`);
-      const page: any[] = Array.isArray(body?.data) ? body.data : [];
-      out.push(...page);
-      if (!body?.has_more || page.length === 0) break;
-      startingAfter = page[page.length - 1]?.id;
-    } while (startingAfter);
-    return out;
-  };
-
   try {
     // ---- Cible 1 : l'identifiant gravé pour ce compte (opposable) ----
     let storedSub: any = null;
@@ -553,8 +497,10 @@ async function reconcileFromStripe(
       // Pas de `.catch` ici : une panne Stripe doit remonter, pas se
       // déguiser en « aucun abonnement enregistré ». Seul un 404 (identifiant
       // mort) est neutralisé, et il ne prouve rien.
-      const retrieved: any = await api(
+      const retrieved: any = await stripeGetJson(
+        secret,
         `/subscriptions/${encodeURIComponent(storedSubId)}`,
+        { allow404: true },
       );
       if (retrieved) {
         const owner = retrieved?.metadata?.user_id;
@@ -579,7 +525,7 @@ async function reconcileFromStripe(
     let foreignCount = 0;
     if (storedSub) found.set(storedSub.id, storedSub);
     for (const customer of customers) {
-      for (const s of await listAllSubscriptions(customer)) {
+      for (const s of await listAllSubscriptions(secret, customer)) {
         const owner = s?.metadata?.user_id;
         // Filtre d'attribution : un abonnement qui déclare un autre compte
         // est écarté avant tout classement — et compté, car son absence
@@ -648,14 +594,7 @@ async function reconcileFromStripe(
     if (!active)
       throw new Error(`reconciliation: statut Stripe non concluant (${status})`);
 
-    const firstItem: any = Array.isArray(sub?.items?.data)
-      ? sub.items.data[0]
-      : undefined;
-    const cycle =
-      sub?.metadata?.cycle === "annual" ||
-      Number(firstItem?.price?.unit_amount ?? 0) >= 19000
-        ? "annual"
-        : "monthly";
+    const cycle = subscriptionCycle(sub);
 
     // Fin de période : lue chez Stripe, jamais calculée. Depuis l'API Stripe
     // Basil, la période vit sur les ÉLÉMENTS de l'abonnement ; on lit donc
@@ -663,19 +602,13 @@ async function reconcileFromStripe(
     // niveau abonnement. Aucune date n'est inventée : si Stripe ne la donne
     // pas, on n'accorde pas de Pro « sans fin » (currentPeriodEnd absent =
     // illimité selon le schéma) et l'erreur remonte.
-    const periodEndSec: number | undefined =
-      typeof firstItem?.current_period_end === "number"
-        ? firstItem.current_period_end
-        : typeof sub?.current_period_end === "number"
-          ? sub.current_period_end
-          : undefined;
-    if (typeof periodEndSec !== "number") {
+    const periodEnd = subscriptionPeriodEndMs(sub);
+    if (typeof periodEnd !== "number") {
       throw new Error(
         `reconciliation: fin de période absente de la réponse Stripe ` +
           `(abonnement ${sub?.id})`,
       );
     }
-    const periodEnd = periodEndSec * 1000;
 
     // `force` : l'état vient d'être lu chez Stripe à l'instant, il prime sur
     // l'ancienneté de l'événement ayant déclenché la réconciliation.
