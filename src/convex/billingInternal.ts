@@ -12,6 +12,32 @@ import { isProSubscription } from "./plans";
  */
 const STRIPE_EVENT_LEASE_MS = 60_000;
 
+/**
+ * Ordre d'application d'un événement Stripe par rapport à l'état du compte.
+ *
+ * - "fresh"     : strictement plus récent, ou ordre indéterminable de façon
+ *                 inoffensive (première écriture, source de force).
+ * - "stale"     : strictement plus ancien → à ne pas appliquer.
+ * - "ambiguous" : même seconde que le dernier événement appliqué. Stripe
+ *                 précise que `event.created` est à la seconde : deux
+ *                 événements distincts peuvent la partager, l'ordre réel est
+ *                 alors indéterminable. On ne tranche pas dans un sens ou dans
+ *                 l'autre : l'appelant réconcilie avec Stripe.
+ */
+function eventOrder(
+  createdAtStripe: number | undefined,
+  sub: { lastStripeEventCreatedAt?: number } | null,
+  force: boolean | undefined,
+): "fresh" | "stale" | "ambiguous" {
+  if (force) return "fresh";
+  if (createdAtStripe === undefined) return "fresh";
+  const applied = sub?.lastStripeEventCreatedAt;
+  if (typeof applied !== "number") return "fresh";
+  if (createdAtStripe < applied) return "stale";
+  if (createdAtStripe === applied) return "ambiguous";
+  return "fresh";
+}
+
 /** Charge les textes à traduire et vérifie le plan Pro (server-side). */
 export const loadTranslateJob = internalQuery({
   args: {
@@ -235,16 +261,16 @@ export const setPlanPro = internalMutation({
     // un abonnement résilié depuis. Exemple : un paiement active le Pro, son
     // traitement échoue, une résiliation intervient, puis Stripe rejoue le
     // paiement — sans cette garde, le compte repassait Pro actif.
-    // `lastStripeEventCreatedAt` = dernier événement appliqué à ce compte.
-    if (!force && createdAtStripe !== undefined && sub) {
-      const applied = sub.lastStripeEventCreatedAt;
-      if (typeof applied === "number" && createdAtStripe < applied) {
-        return {
-          skipped: true,
-          reason: "stale_event" as const,
-          lastStripeEventCreatedAt: applied,
-        };
-      }
+    const order = eventOrder(createdAtStripe, sub, force);
+    if (order !== "fresh") {
+      return {
+        skipped: true,
+        reason: order === "stale" ? ("stale_event" as const) : ("ambiguous" as const),
+        lastStripeEventCreatedAt:
+          typeof sub?.lastStripeEventCreatedAt === "number"
+            ? sub.lastStripeEventCreatedAt
+            : undefined,
+      };
     }
 
     const ids: Record<string, string | number> = {};
@@ -321,32 +347,61 @@ export const recordExternalIds = internalMutation({
  * jusqu'à currentPeriodEnd, mais est marqué "cancelling" pour l'affichage.
  * Le webhook customer.subscription.deleted fera ensuite le passage en Gratuit.
  */
+/**
+ * Identité de facturation d'un compte : email + identifiants Stripe gravés.
+ * Sert à la réconciliation, qui doit retrouver l'abonnement de CE compte avec
+ * les mêmes garanties d'attribution que la résiliation (jamais « le premier
+ * trouvé », jamais un abonnement d'un autre utilisateur).
+ */
+export const getBillingIdentity = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    return {
+      email: user?.email ?? null,
+      externalCustomerId: sub?.externalCustomerId ?? null,
+      externalSubscriptionId: sub?.externalSubscriptionId ?? null,
+      plan: sub?.plan ?? "free",
+      status: sub?.status ?? null,
+    };
+  },
+});
+
 export const markCancelling = internalMutation({
   args: {
     userId: v.id("users"),
     createdAtStripe: v.optional(v.number()),
+    force: v.optional(v.boolean()),
   },
-  handler: async (ctx, { userId, createdAtStripe }) => {
+  handler: async (ctx, { userId, createdAtStripe, force }) => {
     const sub = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
     if (sub) {
+      // Symétrique de setPlanPro : une résiliation livrée APRÈS un paiement
+      // plus récent ne doit pas déclasser le compte. L'ancienneté est donc
+      // testée dans les deux sens, pas seulement pour l'activation.
+      const order = eventOrder(createdAtStripe, sub, force);
+      if (order !== "fresh") {
+        return {
+          skipped: true,
+          reason: order === "stale" ? ("stale_event" as const) : ("ambiguous" as const),
+        };
+      }
       const patch: Record<string, string | number> = {
         status: "cancelling",
         updatedAt: Date.now(),
       };
-      // La résiliation fait avancer le fil d'ancienneté : sans cela, un
-      // paiement plus ancien rejoué ensuite rallumait le Pro.
-      if (
-        createdAtStripe !== undefined &&
-        (typeof sub.lastStripeEventCreatedAt !== "number" ||
-          createdAtStripe > sub.lastStripeEventCreatedAt)
-      ) {
+      if (createdAtStripe !== undefined)
         patch.lastStripeEventCreatedAt = createdAtStripe;
-      }
       await ctx.db.patch(sub._id, patch);
     }
+    return { skipped: false };
   },
 });
 
@@ -354,27 +409,33 @@ export const setPlanFree = internalMutation({
   args: {
     userId: v.id("users"),
     createdAtStripe: v.optional(v.number()),
+    force: v.optional(v.boolean()),
   },
-  handler: async (ctx, { userId, createdAtStripe }) => {
+  handler: async (ctx, { userId, createdAtStripe, force }) => {
     const sub = await ctx.db
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
     if (sub) {
+      // Garde symétrique : un retour en Gratuit plus ancien qu'un paiement
+      // déjà appliqué est écarté, comme l'activation.
+      const order = eventOrder(createdAtStripe, sub, force);
+      if (order !== "fresh") {
+        return {
+          skipped: true,
+          reason: order === "stale" ? ("stale_event" as const) : ("ambiguous" as const),
+        };
+      }
       const patch: Record<string, string | number> = {
         plan: "free",
         status: "cancelled",
         updatedAt: Date.now(),
       };
-      if (
-        createdAtStripe !== undefined &&
-        (typeof sub.lastStripeEventCreatedAt !== "number" ||
-          createdAtStripe > sub.lastStripeEventCreatedAt)
-      ) {
+      if (createdAtStripe !== undefined)
         patch.lastStripeEventCreatedAt = createdAtStripe;
-      }
       await ctx.db.patch(sub._id, patch);
     }
+    return { skipped: false };
   },
 });
 

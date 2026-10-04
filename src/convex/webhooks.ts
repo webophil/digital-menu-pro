@@ -78,17 +78,27 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
   }
 
   if (claim.duplicate) {
-    // Événement déjà soldé, ou déjà en cours de traitement par une autre
-    // livraison : on répond 200 sans rien refaire. Pour une réservation
-    // encore vivante, on répond 200 (et non 5xx) : le travail est déjà en
-    // cours, le faire réémettre immédiatement créerait une boucle.
+    // Événement déjà soldé : 200, rien à refaire.
+    if (!claim.inFlight) {
+      return new Response(
+        JSON.stringify({ received: true, duplicate: true }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // Réservation encore vivante : une autre tentative traite l'événement.
+    // Répondre 200 LAISSERAIT l'événement sans reprise si le traitement
+    // propriétaire s'interrompt (l'expiration du verrou autorise une reprise
+    // mais ne la déclenche pas). On répond donc 503 : Stripe réémet, et la
+    // redelivery tombera après expiration du verrou, donc la reprise aura
+    // lieu d'elle-même. Le jeton garantit que la tentative orpheline ne
+    // pourra pas clore l'événement ensuite.
     return new Response(
-      JSON.stringify({
-        received: true,
-        duplicate: true,
-        ...(claim.inFlight ? { inFlight: true } : {}),
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
+      JSON.stringify({ received: false, inFlight: true, retry: true }),
+      {
+        status: 503,
+        headers: { "Content-Type": "application/json", "Retry-After": "30" },
+      },
     );
   }
 
@@ -198,14 +208,15 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
       }
 
       case "invoice.payment_failed": {
-        await ctx.runMutation(internal.billingInternal.setPlanPro, {
+        // Un paiement ÉCHOUÉ ne donne aucun droit au Pro : on n'active
+        // surtout pas le plan. On note les identifiants et on relit le
+        // statut réel chez Stripe, qui décide (past_due/unpaid/canceled).
+        await ctx.runMutation(internal.billingInternal.recordExternalIds, {
           userId,
-          periodEnd: undefined,
-          cycle: undefined,
           externalCustomerId: idOf(object?.customer),
           externalSubscriptionId: idOf(object?.subscription),
-          source: "checkout",
         });
+        await reconcileFromStripe(ctx, userId, idOf(object?.customer));
         break;
       }
 
@@ -318,11 +329,15 @@ async function activate(
   );
 
   if (applied && (applied as any).skipped === true) {
-    // Rejeu obsolice : l'abonnement a changé depuis cet événement. On relit
-    // l'état chez Stripe (source de vérité) au lieu d'appliquer le vieux
-    // paiement.
+    // Rejeu obsolète (ou ordre indéterminable, même seconde) : l'abonnement a
+    // changé depuis cet événement. On relit l'état chez Stripe (source de
+    // vérité) au lieu d'appliquer ce vieux paiement.
+    //
+    // On ne retourne PAS ici : l'enregistrement de la facture locale doit
+    // rester indépendant de l'actualisation du plan. Si l'échec initial avait
+    // empêché l'insertion, le rejeu doit pouvoir la réparer, puis l'événement
+    // est marqué traité.
     await reconcileFromStripe(ctx, userId, idOf(object?.customer));
-    return { reconciled: true };
   }
 
   const amountEurCents =
@@ -360,75 +375,184 @@ async function activate(
 }
 
 /**
- * Réconciliation : relit l'abonnement chez Stripe et aligne l'état local.
- * Utilisée quand un rejeu ancien a été écarté — Stripe fait foi.
- * Silencieuse en cas d'échec réseau/API : l'état local reste inchangé plutôt
- * que d'être dégradé par une information partielle.
+ * Réconciliation : relit l'abonnement de CE compte chez Stripe et aligne
+ * l'état local. Utilisée quand un événement a été écarté (rejeu obsolète,
+ * ordre indéterminable) ou quand un paiement a échoué.
+ *
+ * Mêmes garanties d'attribution que le résolveur de résiliation
+ * (cf. checkout.resolveAccountStripeSubscription) :
+ *  1. l'identifiant d'abonnement gravé pour ce compte est la cible ;
+ *  2. sinon le customer gravé, en parcourant TOUTES les pages ;
+ *  3. la metadata `user_id` de l'abonnement prime : un abonnement portant
+ *     l'identifiant d'un AUTRE utilisateur n'est jamais retenu.
+ * Un abonnement ambigu (plusieurs prouvés, ou aucun attribuable) laisse
+ * l'état local intact et journalise : on n'écrase rien sur une supposition.
+ * Silencieuse en cas d'échec réseau/API : mieux vaut un état inchangé qu'un
+ * état dégradé par une information partielle.
  */
 async function reconcileFromStripe(
   ctx: any,
   userId: string,
-  customerId?: string,
+  hintCustomerId?: string,
 ) {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return { reconciled: false, reason: "no_secret" };
-  if (!customerId) return { reconciled: false, reason: "no_customer" };
 
-  const res = await fetch(
-    `https://api.stripe.com/v1/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=10`,
-    { headers: { Authorization: `Bearer ${secret}` } },
+  const identity: any = await ctx.runQuery(
+    internal.billingInternal.getBillingIdentity,
+    { userId },
   );
-  if (!res.ok) return { reconciled: false, reason: `http_${res.status}` };
+  const storedSubId: string | null = identity?.externalSubscriptionId ?? null;
+  const storedCustomer: string | null =
+    identity?.externalCustomerId ?? hintCustomerId ?? null;
 
-  const body: any = await res.json();
-  const subs: any[] = Array.isArray(body?.data) ? body.data : [];
-  if (subs.length === 0) {
-    // Abonnement introuvable ou résilié : on aligne sur Gratuit.
-    await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
-    return { reconciled: true, plan: "free" };
+  const auth = { Authorization: `Bearer ${secret}` };
+  const api = async (path: string): Promise<any> => {
+    const res = await fetch(`https://api.stripe.com/v1${path}`, {
+      headers: auth,
+    });
+    if (res.status === 404) return null; // identifiant mort : ne prouve rien
+    if (!res.ok)
+      throw new Error(`Stripe ${res.status} sur ${path.split("?")[0]}`);
+    return await res.json();
+  };
+
+  /** Auto-pagination : ne jamais s'arrêter à la première page. */
+  const listAllSubscriptions = async (customer: string) => {
+    const out: any[] = [];
+    let startingAfter: string | undefined;
+    do {
+      const qs = new URLSearchParams({
+        customer,
+        status: "all",
+        limit: "100",
+      });
+      if (startingAfter) qs.set("starting_after", startingAfter);
+      const body: any = await api(`/subscriptions?${qs.toString()}`);
+      const page: any[] = Array.isArray(body?.data) ? body.data : [];
+      out.push(...page);
+      if (!body?.has_more || page.length === 0) break;
+      startingAfter = page[page.length - 1]?.id;
+    } while (startingAfter);
+    return out;
+  };
+
+  try {
+    // ---- Cible 1 : l'identifiant gravé pour ce compte (opposable) ----
+    let storedSub: any = null;
+    if (storedSubId) {
+      const retrieved: any = await api(
+        `/subscriptions/${encodeURIComponent(storedSubId)}`,
+      ).catch(() => null);
+      if (retrieved) {
+        const owner = retrieved?.metadata?.user_id;
+        // La metadata désigne explicitement un AUTRE compte : on n'y touche
+        // surtout pas (c'était précisément le défaut :-on retenait un
+        // abonnement appartient à quelqu'un d'autre avec force: true).
+        if (typeof owner === "string" && owner.length > 0 && owner !== userId) {
+          console.error(
+            "[webhook stripe] abonnement enregistré appartenant à un autre compte",
+            storedSubId,
+          );
+          return { reconciled: false, reason: "foreign_stored_sub" };
+        }
+        storedSub = retrieved;
+      }
+    }
+
+    // ---- Cible 2 : les customers attribuables à ce compte, toutes pages ----
+    const customers = new Set<string>();
+    if (storedCustomer) customers.add(storedCustomer);
+    if (idOf(storedSub?.customer)) customers.add(idOf(storedSub!.customer)!);
+
+    const found = new Map<string, any>();
+    if (storedSub) found.set(storedSub.id, storedSub);
+    for (const customer of customers) {
+      for (const s of await listAllSubscriptions(customer)) {
+        const owner = s?.metadata?.user_id;
+        // Filtre d'attribution : un abonnement qui déclare un autre compte
+        // est écarté avant tout classement.
+        if (typeof owner === "string" && owner.length > 0 && owner !== userId)
+          continue;
+        if (!found.has(s.id)) found.set(s.id, s);
+      }
+    }
+
+    const live = [...found.values()].filter(
+      (s) => s?.status !== "canceled" && s?.status !== "incomplete_expired",
+    );
+
+    if (live.length === 0) {
+      // Aucun abonnement vivant parmi les chaînes attribuables à ce compte :
+      // on aligne sur Gratuit (avec force : l'état vient d'être lu chez Stripe).
+      await ctx.runMutation(internal.billingInternal.setPlanFree, {
+        userId,
+        force: true,
+      });
+      return { reconciled: true, plan: "free" };
+    }
+
+    if (live.length > 1) {
+      // Ambigu : plusieurs abonnements prouvés. Rien n'est écrit.
+      console.error(
+        "[webhook stripe] réconciliation ambiguë, état inchangé",
+        live.map((s) => s.id),
+      );
+      return { reconciled: false, reason: "multiple_subscriptions" };
+    }
+
+    const sub = live[0];
+    const status: string = sub?.status ?? "";
+
+    if (
+      status === "canceled" ||
+      status === "unpaid" ||
+      status === "incomplete_expired"
+    ) {
+      await ctx.runMutation(internal.billingInternal.setPlanFree, {
+        userId,
+        force: true,
+      });
+      return { reconciled: true, plan: "free" };
+    }
+
+    const active =
+      status === "active" || status === "trialing" || status === "past_due";
+    if (!active) return { reconciled: false, reason: `status_${status}` };
+
+    const cycle =
+      sub?.metadata?.cycle === "annual" ||
+      (Array.isArray(sub?.items?.data) &&
+        Number(sub.items.data[0]?.price?.unit_amount ?? 0) >= 19000)
+        ? "annual"
+        : "monthly";
+    // Période réelle lue chez Stripe : jamais une valeur inventée.
+    const periodEnd = sub?.current_period_end
+      ? sub.current_period_end * 1000
+      : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
+
+    // `force` : l'état vient d'être lu chez Stripe à l'instant, il prime sur
+    // l'ancienneté de l'événement ayant déclenché la réconciliation.
+    await ctx.runMutation(internal.billingInternal.setPlanPro, {
+      userId,
+      periodEnd,
+      cycle,
+      externalCustomerId: idOf(sub.customer) ?? storedCustomer ?? undefined,
+      externalSubscriptionId: idOf(sub.id),
+      source: "checkout",
+      force: true,
+    });
+    if (sub?.cancel_at_period_end === true) {
+      await ctx.runMutation(internal.billingInternal.markCancelling, {
+        userId,
+        force: true,
+      });
+    }
+    return { reconciled: true, plan: "pro", subscriptionId: sub.id };
+  } catch (err) {
+    console.error("[webhook stripe] réconciliation impossible", err);
+    return { reconciled: false, reason: "stripe_error" };
   }
-
-  // Le plus récemment modifié fait foi.
-  subs.sort(
-    (a, b) => (b?.created ?? 0) - (a?.created ?? 0),
-  );
-  const sub = subs[0];
-  const status: string = sub?.status ?? "";
-
-  if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") {
-    await ctx.runMutation(internal.billingInternal.setPlanFree, { userId });
-    return { reconciled: true, plan: "free" };
-  }
-
-  const active =
-    status === "active" || status === "trialing" || status === "past_due";
-  if (!active) return { reconciled: false, reason: `status_${status}` };
-
-  const cycle =
-    (idOf(sub?.metadata?.cycle) === "annual") ||
-    (Array.isArray(sub?.items?.data) &&
-      Number(sub.items.data[0]?.price?.unit_amount ?? 0) >= 19000)
-      ? "annual"
-      : "monthly";
-  const periodEnd = sub?.current_period_end
-    ? sub.current_period_end * 1000
-    : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
-
-  // `force` : ici l'état vient d'être lu chez Stripe à l'instant, il prime
-  // sur l'ancienneté de l'événement qui a déclenché la réconciliation.
-  await ctx.runMutation(internal.billingInternal.setPlanPro, {
-    userId,
-    periodEnd,
-    cycle,
-    externalCustomerId: customerId,
-    externalSubscriptionId: idOf(sub?.id),
-    source: "checkout",
-    force: true,
-  });
-  if (sub?.cancel_at_period_end === true) {
-    await ctx.runMutation(internal.billingInternal.markCancelling, { userId });
-  }
-  return { reconciled: true, plan: "pro" };
 }
 
 async function hmacHex(payload: string, secret: string): Promise<string> {
