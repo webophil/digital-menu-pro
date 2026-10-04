@@ -44,17 +44,26 @@ const schema = defineSchema(
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
-
-      // Changement d'email en attente de validation (cf. accountEmail.ts).
-      // L'adresse n'est écrite dans `email` qu'après validation du code :
-      // ces champs ne portent que la demande en cours. Le code n'est jamais
-      // stocké en clair, seulement son empreinte salée.
-      pendingEmail: v.optional(v.string()),
-      pendingEmailSalt: v.optional(v.string()),
-      pendingEmailHash: v.optional(v.string()),
-      pendingEmailExpiresAt: v.optional(v.number()),
-      pendingEmailAttempts: v.optional(v.number()),
     }).index("email", ["email"]), // index for the email. do not remove or modify
+
+    // Changement d'email en attente de validation (cf. accountEmail.ts).
+    //
+    // Table DÉDIÉE, et non des champs sur `users` : `users.currentUser`
+    // renvoie le document utilisateur entier, et `useAuth()` l'expose dans
+    // toute l'application. Un code à 6 chiffres n'offre qu'un million de
+    // possibilités : Endpoint et son sel suffisaient à retrouver le code par
+    // recherche locale, sans recevoir l'email et sans épuiser les tentatives
+    // côté serveur. Aucune donnée de confirmation ne doit vivre dans un
+    // document lisible par le client ; seul ce code y accède.
+    emailChangeRequests: defineTable({
+      userId: v.id("users"),
+      email: v.string(), // adresse demandée, pas encore appliquée
+      codeHash: v.string(), // SHA-256 salé du code — jamais le code en clair
+      salt: v.string(),
+      expiresAt: v.number(),
+      attempts: v.number(),
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]),
 
     // ---- V'la le Menu ! (SaaS menus digitaux) ----
 

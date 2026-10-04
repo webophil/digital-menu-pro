@@ -5,28 +5,28 @@ import { internalMutation, mutation } from "./_generated/server";
 /**
  * Changement d'email de connexion — logique en base.
  *
- * AVANT : `updateMyEmail` écrivait la nouvelle adresse immédiatement, sans
- * aucune preuve de possession. Deux défauts :
- *  1. il cherchait le compte de connexion avec le provider `"email"` alors
- *     que la base contient le provider `"email-otp"` (cf. `Email()` de
- *     @convex-dev/auth, dont l'id est surchargé par `options.id`). Le patch
- *     ne trouvait donc jamais sa cible : l'adresse de profil changeait mais
- *     l'identifiant de connexion restait l'ancien, et l'utilisateur ne
- *     pouvait plus se reconnecter du tout ;
- *  2. l'adresse était enregistrée avant toute vérification : il suffisait
- *     d'être connecté pour rediriger les accès d'un compte.
+ * L'adresse n'est écrite qu'après validation d'un code envoyé À CETTE
+ * ADRESSE (`confirmEmailChange`). Tant que le code n'est pas validé, le
+ * profil garde l'ancienne adresse et le compte reste connecté normalement.
  *
- * MAINTENANT : la nouvelle adresse n'est écrite qu'après validation d'un code
- * envoyé À CETTE ADRESSE (`confirmEmailChange`). Tant que le code n'est pas
- * validé, le profil garde l'ancienne adresse et le compte reste connecté
- * normalement.
+ * Deux contraintes dictent la structure de ce fichier.
  *
- * Le provider visé est `"email-otp"`, vérifié dans le code : si l'identité de
- * connexion est absente, le changement est REFUSÉ plutôt que de laisser le
- * compte sans moyen de se reconnecter.
+ * 1) AUCUNE donnée de confirmation dans la table `users`.
+ *    `users.currentUser` renvoie le document utilisateur ENTIER, et
+ *    `useAuth()` l'expose dans toute l'application. Or un code à 6 chiffres
+ *    n'offre qu'un million de possibilités : avec l'empreinte et le sel
+ *    lisibles, on retrouve le code par recherche locale, sans recevoir
+ *    l'email et sans épuiser les tentatives côté serveur. Ces données
+ *    vivent donc dans `emailChangeRequests`, lisible uniquement par ce code.
  *
- * Ce fichier ne contient QUE des mutations : l'envoi du code, qui exige le
- * runtime Node, vit dans `accountEmailSend.ts`.
+ * 2) AUCUN `throw` après une écriture.
+ *    Une mutation Convex est transactionnelle : lever annule tout ce qu'elle
+ *    a écrit. Incrémenter un compteur puis lever ne compterait donc jamais —
+ *    la demande resterait ouverte indéfiniment. Après avoir enregistré
+ *    l'échec, on RENVOIE un résultat d'erreur que l'interface affiche.
+ *
+ * L'envoi du code, qui exige le runtime Node, vit dans
+ * `accountEmailSend.ts`.
  */
 
 /** Identifiant du provider de connexion (doit correspondre à `auth.ts`). */
@@ -37,6 +37,19 @@ const CODE_TTL_MS = 15 * 60 * 1000;
 
 /** Nombre de tentatives avant d'abandonner la demande en cours. */
 const MAX_ATTEMPTS = 5;
+
+/** Intervalle minimal entre deux demandes de code (anti-abus). */
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
+/** Résultat d'échec : jamais une exception, pour ne pas annuler l'écriture. */
+function failure(error: string) {
+  return { ok: false as const, error };
+}
+
+/** Résultat de succès. */
+function success(email: string) {
+  return { ok: true as const, email };
+}
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -94,6 +107,8 @@ function safeEqual(a: string, b: string): boolean {
  * Vérifie les conditions communes aux deux étapes.
  * Les admins sont exclus : l'email d'un compte à hauts privilèges ne doit
  * pas pouvoir être redirigé depuis le site (support uniquement).
+ *
+ * Ne fait AUCUNE écriture : un `throw` ici est sans conséquence.
  */
 async function requireChangeableUser(ctx: any) {
   const userId = await getAuthUserId(ctx);
@@ -109,14 +124,12 @@ async function requireChangeableUser(ctx: any) {
 }
 
 /** L'adresse est-elle déjà prise par un autre compte (profil ou connexion) ? */
-async function assertEmailFree(ctx: any, email: string, userId: any) {
+async function emailTakenByOther(ctx: any, email: string, userId: any) {
   const inUsers = await ctx.db
     .query("users")
     .withIndex("email", (q: any) => q.eq("email", email))
     .first();
-  if (inUsers && inUsers._id !== userId) {
-    throw new Error("Cet email est déjà utilisé par un autre compte.");
-  }
+  if (inUsers && inUsers._id !== userId) return true;
 
   const inAccounts = await ctx.db
     .query("authAccounts")
@@ -124,27 +137,23 @@ async function assertEmailFree(ctx: any, email: string, userId: any) {
       q.eq("provider", EMAIL_PROVIDER).eq("providerAccountId", email),
     )
     .first();
-  if (inAccounts && inAccounts.userId !== userId) {
-    throw new Error("Cet email est déjà utilisé par un autre compte.");
-  }
+  return Boolean(inAccounts && inAccounts.userId !== userId);
 }
 
-/** Oublie la demande en cours (échec, expiration, abandon). */
-async function clearPending(ctx: any, userId: any) {
-  await ctx.db.patch(userId, {
-    pendingEmail: undefined,
-    pendingEmailSalt: undefined,
-    pendingEmailHash: undefined,
-    pendingEmailExpiresAt: undefined,
-    pendingEmailAttempts: undefined,
-  });
+/** Demande en cours pour ce compte, s'il y en a une. */
+async function findPending(ctx: any, userId: any) {
+  return await ctx.db
+    .query("emailChangeRequests")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .first();
 }
 
 /**
  * Prépare la demande : contrôles, génération du code, mémorisation de son
- * empreinte. Mutation INTERNE car son résultat contient le code en clair,
- * destiné à l'envoi d'email : il ne doit jamais atteindre le navigateur.
- * Le profil n'est pas modifié — `users.email` reste l'ancienne adresse.
+ * empreinte dans la table dédiée. Mutation INTERNE car son résultat contient
+ * le code en clair, destiné à l'envoi d'email : il ne doit jamais atteindre
+ * le navigateur. Le profil n'est pas modifié — `users.email` reste l'ancienne
+ * adresse.
  */
 export const beginEmailChange = internalMutation({
   args: { email: v.string() },
@@ -156,17 +165,35 @@ export const beginEmailChange = internalMutation({
     if (normalized === (user.email ?? "").toLowerCase()) {
       throw new Error("Cette adresse est déjà celle de votre compte.");
     }
-    await assertEmailFree(ctx, normalized, userId);
+    if (await emailTakenByOther(ctx, normalized, userId)) {
+      throw new Error("Cet email est déjà utilisé par un autre compte.");
+    }
+
+    const now = Date.now();
+
+    // Une seule demande en cours par compte : la précédente est remplacée.
+    const previous = await findPending(ctx, userId);
+    if (previous) {
+      // Anti-abus : sans délai, la demande est ignorée (l'ancienne reste
+      // valable jusqu'à son expiration).
+      if (now - previous.createdAt < RESEND_COOLDOWN_MS) {
+        throw new Error(
+          "Un code vient d'être envoyé. Patientez une minute avant d'en demander un nouveau.",
+        );
+      }
+      await ctx.db.delete(previous._id);
+    }
 
     const code = generateCode();
     const salt = randomHex(16);
-
-    await ctx.db.patch(userId, {
-      pendingEmail: normalized,
-      pendingEmailSalt: salt,
-      pendingEmailHash: await hashCode(code, salt),
-      pendingEmailExpiresAt: Date.now() + CODE_TTL_MS,
-      pendingEmailAttempts: 0,
+    await ctx.db.insert("emailChangeRequests", {
+      userId,
+      email: normalized,
+      codeHash: await hashCode(code, salt),
+      salt,
+      expiresAt: now + CODE_TTL_MS,
+      attempts: 0,
+      createdAt: now,
     });
 
     return { email: normalized, code };
@@ -179,13 +206,19 @@ export const cancelEmailChange = mutation({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
-    await clearPending(ctx, userId);
+    const request = await findPending(ctx, userId);
+    if (request) await ctx.db.delete(request._id);
     return { ok: true };
   },
 });
 
 /**
  * Étape 2 : valide le code et n'ALORS seulement applique le changement.
+ *
+ * NE LÈVE JAMAIS après avoir écrit quoi que ce soit : la mutation étant
+ * transactionnelle, une exception annulerait l'écriture et l'échec ne serait
+ * jamais compté. Chaque issue est donc RENVOYÉE (`{ ok: false, error }`),
+ * y compris celle qui incrémente le compteur.
  *
  * Le profil (`users`) et l'identité de connexion (`authAccounts`) sont mis à
  * jour dans la même transaction : les deux doivent rester cohérents, sinon la
@@ -195,43 +228,53 @@ export const cancelEmailChange = mutation({
 export const confirmEmailChange = mutation({
   args: { code: v.string() },
   handler: async (ctx, { code }) => {
-    const { userId, user } = await requireChangeableUser(ctx);
+    const { userId } = await requireChangeableUser(ctx);
 
-    const pendingEmail = user.pendingEmail as string | undefined;
-    const salt = user.pendingEmailSalt as string | undefined;
-    const expected = user.pendingEmailHash as string | undefined;
-    const expiresAt = user.pendingEmailExpiresAt as number | undefined;
-    const attempts = (user.pendingEmailAttempts as number | undefined) ?? 0;
-
-    if (!pendingEmail || !salt || !expected) {
-      throw new Error(
+    const request = await findPending(ctx, userId);
+    if (!request) {
+      return failure(
         "Aucune demande de changement en cours. Relancez la demande pour recevoir un nouveau code.",
       );
     }
 
-    if (typeof expiresAt === "number" && expiresAt < Date.now()) {
-      await clearPending(ctx, userId);
-      throw new Error("Le code a expiré. Relancez la demande.");
+    // ---- Échecs qui n'écrivent rien : une exception serait sans effet ----
+    if (request.expiresAt < Date.now()) {
+      await ctx.db.delete(request._id);
+      return failure("Le code a expiré. Relancez la demande.");
     }
 
-    if (!safeEqual(expected, await hashCode(code.trim(), salt))) {
+    const matches = safeEqual(
+      request.codeHash,
+      await hashCode(code.trim(), request.salt),
+    );
+
+    if (!matches) {
       // Un code à 6 chiffres se devine : on borne les tentatives ET on
-      // invalide la demande, faute de quoi elle permettrait de tester des codes
-      // à l'infini.
-      if (attempts + 1 >= MAX_ATTEMPTS) {
-        await clearPending(ctx, userId);
-        throw new Error(
+      // invalide la demande au-delà, faute de quoi elle permettrait de tester
+      // des codes à l'infini. L'écriture ci-dessous DOIT être suivie d'un
+      // `return`, jamais d'un `throw` : ce serait annulé avec la mutation.
+      const attempts = request.attempts + 1;
+      if (attempts >= MAX_ATTEMPTS) {
+        await ctx.db.delete(request._id);
+        return failure(
           "Trop de tentatives incorrectes. Relancez la demande pour obtenir un nouveau code.",
         );
       }
-      await ctx.db.patch(userId, { pendingEmailAttempts: attempts + 1 });
-      throw new Error("Code incorrect.");
+      await ctx.db.patch(request._id, { attempts });
+      const remaining = MAX_ATTEMPTS - attempts;
+      return failure(
+        `Code incorrect. Il vous reste ${remaining} tentative${remaining > 1 ? "s" : ""}.`,
+      );
     }
 
-    // Code correct : preuve de possession de la nouvelle adresse. Unicité
-    // revérifiée à l'instant — une inscription a pu prendre l'adresse entre
-    // la demande et la validation.
-    await assertEmailFree(ctx, pendingEmail, userId);
+    // ---- Code correct : preuve de possession de la nouvelle adresse ----
+    // Unicité revérifiée à l'instant — une inscription a pu prendre
+    // l'adresse entre la demande et la validation.
+    if (await emailTakenByOther(ctx, request.email, userId)) {
+      return failure(
+        "Cet email est désormais utilisé par un autre compte. Relancez la demande.",
+      );
+    }
 
     const account = await ctx.db
       .query("authAccounts")
@@ -244,26 +287,22 @@ export const confirmEmailChange = mutation({
       // Sans identité de connexion, changer l'email du profil rendrait le
       // compte irrécupérable. On refuse plutôt que d'écrire une adresse
       // orpheline.
-      throw new Error(
+      return failure(
         "Aucun moyen de connexion email n'est associé à ce compte. Contactez le support (contact@vlalemenu.fr).",
       );
     }
 
     await ctx.db.patch(account._id, {
-      providerAccountId: pendingEmail,
+      providerAccountId: request.email,
       secret: undefined,
     });
     await ctx.db.patch(userId, {
-      email: pendingEmail,
+      email: request.email,
       // L'adresse vient d'être prouvée : elle est bien à son détenteur.
       emailVerificationTime: Date.now(),
-      pendingEmail: undefined,
-      pendingEmailSalt: undefined,
-      pendingEmailHash: undefined,
-      pendingEmailExpiresAt: undefined,
-      pendingEmailAttempts: undefined,
     });
+    await ctx.db.delete(request._id);
 
-    return { ok: true, email: pendingEmail };
+    return success(request.email);
   },
 });

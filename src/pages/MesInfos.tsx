@@ -173,12 +173,31 @@ export default function MesInfos() {
     setBusyEmail(true);
     try {
       // Étape 2 : l'adresse n'est écrite qu'ici, une fois le code validé.
+      //
+      // Le serveur RENVOIE l'échec au lieu de lever : une mutation Convex
+      // étant transactionnelle, un `throw` après l'enregistrement d'un
+      // échec annulerait cette écriture — le compteur de tentatives ne
+      // serait jamais incrémenté et la demande resterait ouverte
+      // indéfiniment. On affiche donc le message renvoyé, pas une exception.
       const res = await confirmEmailChange({ code: emailCode.trim() });
+      setEmailCode("");
+      if (!res.ok) {
+        toast.error(res.error);
+        // Demande close (expirée, trop d'essais, plus de compte de
+        // connexion) : il faut repartir d'une nouvelle demande.
+        if (
+          /expiré|trop de tentatives|plus en cours|aucun moyen/i.test(
+            res.error,
+          )
+        ) {
+          setEmailPending(null);
+        }
+        return;
+      }
       toast.success(
         `Email mis à jour ! ${res.email} servira à votre prochaine connexion.`,
       );
       setEmailPending(null);
-      setEmailCode("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
