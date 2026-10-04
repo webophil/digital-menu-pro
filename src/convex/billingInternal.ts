@@ -320,9 +320,27 @@ export const recordInvoice = internalMutation({
     plan: v.string(),
     description: v.string(),
     cycle: v.optional(v.string()),
+    // Clé d'idempotence : identifiant de facture Stripe. Le même paiement
+    // arrive via plusieurs événements (checkout.session.completed et
+    // invoice.paid) ; sans cette clé, chaque livraison insérait une facture
+    // locale supplémentaire.
+    stripeInvoiceId: v.optional(v.string()),
+    periodStart: v.optional(v.number()),
+    periodEnd: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert("invoices", {
+    // Déjà enregistrée (livraison répétée du même paiement) : on ne duplique pas.
+    if (args.stripeInvoiceId) {
+      const existing = await ctx.db
+        .query("invoices")
+        .withIndex("by_stripe_invoice", (q) =>
+          q.eq("stripeInvoiceId", args.stripeInvoiceId),
+        )
+        .unique();
+      if (existing) return { created: false, invoiceId: existing._id };
+    }
+
+    const invoiceId = await ctx.db.insert("invoices", {
       userId: args.userId,
       number: args.number,
       amountEurCents: args.amountEurCents,
@@ -331,6 +349,89 @@ export const recordInvoice = internalMutation({
       issuedAt: Date.now(),
       description: args.description,
       cycle: args.cycle,
+      stripeInvoiceId: args.stripeInvoiceId,
+      periodStart: args.periodStart,
+      periodEnd: args.periodEnd,
     });
+    return { created: true, invoiceId };
+  },
+});
+
+/**
+ * Dédoublonnage des livraisons Stripe.
+ *
+ * Renvoie `duplicate: true` si l'événement a déjà été traité avec succès :
+ * le webhook répond alors 200 sans rien refaire. Un événement en échec ou
+ * interrompu est réessayé (Stripe réémet pendant ~3 jours), ce qui est sans
+ * danger car `recordInvoice` est lui-même idempotent.
+ */
+export const beginStripeEvent = internalMutation({
+  args: { eventId: v.string(), type: v.string() },
+  handler: async (ctx, { eventId, type }) => {
+    const existing = await ctx.db
+      .query("stripeEvents")
+      .withIndex("by_event_id", (q) => q.eq("eventId", eventId))
+      .unique();
+
+    if (existing && existing.status === "processed") {
+      return { duplicate: true, attempts: existing.attempts };
+    }
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        status: "processing",
+        attempts: existing.attempts + 1,
+        lastError: undefined,
+        receivedAt: Date.now(),
+      });
+      return { duplicate: false, attempts: existing.attempts + 1 };
+    }
+
+    await ctx.db.insert("stripeEvents", {
+      eventId,
+      type,
+      status: "processing",
+      attempts: 1,
+      receivedAt: Date.now(),
+    });
+    return { duplicate: false, attempts: 1 };
+  },
+});
+
+/** Marque l'événement comme traité (aucune reprise possible). */
+export const completeStripeEvent = internalMutation({
+  args: { eventId: v.string() },
+  handler: async (ctx, { eventId }) => {
+    const existing = await ctx.db
+      .query("stripeEvents")
+      .withIndex("by_event_id", (q) => q.eq("eventId", eventId))
+      .unique();
+    if (!existing) return { found: false };
+    await ctx.db.patch(existing._id, {
+      status: "processed",
+      processedAt: Date.now(),
+      lastError: undefined,
+    });
+    return { found: true };
+  },
+});
+
+/**
+ * Marque l'événement en échec. Le webhook répond alors 5xx : Stripe réémet
+ * l'événement, qui sera retenté jusqu'à `maxAttempts`.
+ */
+export const failStripeEvent = internalMutation({
+  args: { eventId: v.string(), error: v.string() },
+  handler: async (ctx, { eventId, error }) => {
+    const existing = await ctx.db
+      .query("stripeEvents")
+      .withIndex("by_event_id", (q) => q.eq("eventId", eventId))
+      .unique();
+    if (!existing) return { found: false };
+    await ctx.db.patch(existing._id, {
+      status: "failed",
+      lastError: error.slice(0, 500),
+    });
+    return { found: true };
   },
 });

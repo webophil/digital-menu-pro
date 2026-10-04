@@ -151,7 +151,25 @@ const schema = defineSchema(
       periodEnd: v.optional(v.number()),
       description: v.string(),
       cycle: v.optional(v.string()), // "monthly" | "annual"
-    }).index("by_user", ["userId"]),
+      // Identifiant de facture Stripe : clé d'idempotence. Le premier
+      // paiement déclenche deux événements (checkout.session.completed puis
+      // invoice.paid) qui désignent la même facture Stripe : sans cette clé,
+      // deux factures locales étaient créées pour un seul paiement.
+      stripeInvoiceId: v.optional(v.string()),
+    })
+      .index("by_user", ["userId"])
+      .index("by_stripe_invoice", ["stripeInvoiceId"]),
+
+    // Journal des événements Stripe reçus (dédoublonnage + reprise sur erreur)
+    stripeEvents: defineTable({
+      eventId: v.string(), // event.id — unique par livraison Stripe
+      type: v.string(),
+      status: v.string(), // "processing" | "processed" | "failed"
+      attempts: v.number(),
+      lastError: v.optional(v.string()),
+      receivedAt: v.number(),
+      processedAt: v.optional(v.number()),
+    }).index("by_event_id", ["eventId"]),
 
     // Messages du formulaire de contact (page /contact)
     contactMessages: defineTable({

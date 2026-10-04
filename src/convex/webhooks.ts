@@ -45,6 +45,60 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
 
   const type: string = event?.type ?? "";
   const object = event?.data?.object ?? {};
+  const eventId: string =
+    typeof event?.id === "string" ? event.id : `no-id:${type}:${Date.now()}`;
+
+  // ---- Dédoublonnage ----
+  // Stripe réémet un événement en cas de non-réponse 2xx et peut livrer le
+  // même événement en double : on ne traite chaque `event.id` qu'une fois.
+  let claim: { duplicate: boolean };
+  try {
+    claim = await ctx.runMutation(internal.billingInternal.beginStripeEvent, {
+      eventId,
+      type,
+    });
+  } catch (err) {
+    console.error("[webhook stripe] journalisation impossible", eventId, err);
+    return new Response(
+      JSON.stringify({ error: "Impossible de journaliser l'événement" }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  if (claim.duplicate) {
+    return new Response(JSON.stringify({ received: true, duplicate: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /** Réponse finale : succès ou échec durable (Stripe retentera). */
+  const finish = async (err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    try {
+      await ctx.runMutation(internal.billingInternal.failStripeEvent, {
+        eventId,
+        error: message,
+      });
+    } catch (logErr) {
+      console.error("[webhook stripe] échec du journal", eventId, logErr);
+    }
+    console.error("[webhook stripe]", type, eventId, err);
+    // 5xx : Stripe réémet l'événement (réessais automatiques ~3 jours).
+    // Le traitement étant idempotent (recordInvoice + guards dedup), un rejeu
+    // ne duplique ni facture ni abonnement.
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  /** Succès : l'événement est marqué traité, les reprises seront ignorées. */
+  const done = async (extra?: Record<string, unknown>) =>
+    new Response(JSON.stringify({ received: true, ...(extra ?? {}) }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
 
   // ---- Attribution de l'utilisateur ----
   // (payload JSON : typé any, casté en Id<"users"> aux points d'appel)
@@ -65,6 +119,11 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
   }
 
   if (!userId) {
+    // Événement sans abonné identifiable : rien à faire, on le solde pour
+    // éviter que Stripe le réémette indéfiniment.
+    await ctx.runMutation(internal.billingInternal.completeStripeEvent, {
+      eventId,
+    });
     return new Response(JSON.stringify({ ok: true, ignored: type }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -80,7 +139,13 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
           object?.subscription_details?.current_period_end
             ? object.subscription_details.current_period_end * 1000
             : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
-        await activate(ctx, userId, cycle, periodEnd, object);
+        const periodStart = object?.subscription_details?.current_period_start
+          ? object.subscription_details.current_period_start * 1000
+          : undefined;
+        await activate(ctx, userId, cycle, periodEnd, object, {
+          periodStart,
+          stripeInvoiceId: idOf(object?.invoice),
+        });
         break;
       }
 
@@ -95,7 +160,14 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
         const periodEnd = object?.lines?.data?.[0]?.period?.end
           ? object.lines.data[0].period.end * 1000
           : Date.now() + (cycle === "annual" ? 365 : 30) * 24 * 3600 * 1000;
-        await activate(ctx, userId, cycle, periodEnd, object);
+        const periodStart = object?.lines?.data?.[0]?.period?.start
+          ? object.lines.data[0].period.start * 1000
+          : undefined;
+        await activate(ctx, userId, cycle, periodEnd, object, {
+          periodStart,
+          // invoice.paid : l'objet EST la facture, son id est la clé.
+          stripeInvoiceId: idOf(object?.id),
+        });
         break;
       }
 
@@ -158,15 +230,14 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
       default:
         break;
     }
-  } catch (err) {
-    console.error("[webhook stripe]", type, err);
-    // 200 quand même : Stripe retenterait inutilement une erreur de nos données.
-  }
 
-  return new Response(JSON.stringify({ received: true }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+    await ctx.runMutation(internal.billingInternal.completeStripeEvent, {
+      eventId,
+    });
+    return await done();
+  } catch (err) {
+    return await finish(err);
+  }
 });
 
 /**
@@ -186,6 +257,7 @@ async function activate(
   cycle: "monthly" | "annual",
   periodEnd: number,
   object: any,
+  opts: { periodStart?: number; stripeInvoiceId?: string } = {},
 ) {
   // Enregistre les identifiants Stripe : sans eux, aucune résiliation
   // côté serveur n'est possible (cf. checkout.cancelSubscription).
@@ -207,12 +279,27 @@ async function activate(
       : cycle === "annual"
         ? 19000
         : 1900;
+
+  // Clé d'idempotence de la facture : l'identifiant de facture Stripe
+  // lui-même. `checkout.session.completed` (première facture) et
+  // `invoice.paid` désignent la même facture `in_...` : la clé fait converger
+  // les deux événements vers une seule facture locale.
+  const stripeInvoiceId =
+    opts.stripeInvoiceId ??
+    idOf(object?.invoice) ??
+    (String(object?.object ?? "") === "invoice" ? idOf(object?.id) : undefined);
+
   await ctx.runMutation(internal.billingInternal.recordInvoice, {
     userId,
-    number: String(object?.number ?? object?.id ?? `INV-${Date.now()}`),
+    // Numéro lisible : la référence Stripe si elle existe, sinon l'identifiant
+    // (plus jamais un horodatage, qui changeait à chaque livraison).
+    number: String(object?.number ?? object?.id ?? stripeInvoiceId ?? "—"),
     amountEurCents,
     plan: "pro",
     cycle,
+    stripeInvoiceId,
+    periodStart: opts.periodStart,
+    periodEnd,
     description:
       cycle === "annual"
         ? "Abonnement V'la le Menu ! Pro — annuel — TVA non applicable, art. 293 B du CGI / art. L. 223-3 du CIBS"
