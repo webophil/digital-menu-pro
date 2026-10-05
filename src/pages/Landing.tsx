@@ -164,7 +164,7 @@ function Hero() {
 
           {/* Pulsation « scan » au niveau de la jonction photo → téléphone */}
           {scanImgOk && (
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+            <div className="pointer-events-none absolute inset-0 z-20 hidden items-center justify-center sm:flex">
               <motion.div
                 animate={{ scale: [1, 1.14, 1] }}
                 transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
