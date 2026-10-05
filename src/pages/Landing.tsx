@@ -290,10 +290,7 @@ function Hero() {
             />
           </div>
           <div className="min-w-0">
-            <p className="font-[Baloo_2] text-lg font-extrabold sm:text-xl">
-              Voir un menu de démonstration
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Scannez ce QR code avec votre téléphone : le menu client s'ouvre
               instantanément. Le menu présenté utilise les traductions et options de personnalisation PRO.
             </p>
@@ -305,7 +302,7 @@ function Hero() {
               <Button
                 asChild
                 variant="ghost"
-                className="clay-sm h-auto rounded-full bg-muted px-3 py-1 text-xs font-bold text-foreground hover:bg-muted/70"
+                className="clay-sm h-auto rounded-full bg-muted px-4 py-2 text-base font-bold text-foreground hover:bg-muted/70 sm:px-5 sm:text-lg"
               >
                 <a
                   href="https://vlalemenu.fr/m/mmqnzu"
