@@ -297,19 +297,25 @@ function Hero() {
               Scannez ce QR code avec votre téléphone : le menu client s'ouvre
               instantanément. Le menu présenté utilise les traductions et options de personnalisation PRO.
             </p>
-            <Button
-              asChild
-              variant="ghost"
-              className="clay-sm mt-3 h-auto rounded-full bg-muted px-3 py-1 text-xs font-bold text-foreground hover:bg-muted/70"
-            >
-              <a
-                href="https://vlalemenu.fr/m/mmqnzu"
-                target="_blank"
-                rel="noopener noreferrer"
+            {/* Conteneur centré : avec `asChild`, Radix concatène les classes du
+                Button et celles du <a> sans passer par twMerge ; un wrapper
+                `justify-center` centre réellement le bouton quelle que soit
+                l'ordre des utilitaires `display` dans la feuille CSS. */}
+            <div className="mt-3 flex justify-center">
+              <Button
+                asChild
+                variant="ghost"
+                className="clay-sm h-auto rounded-full bg-muted px-3 py-1 text-xs font-bold text-foreground hover:bg-muted/70"
               >
-                Voir le menu démo
-              </a>
-            </Button>
+                <a
+                  href="https://vlalemenu.fr/m/mmqnzu"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ouvrir le MENU DEMO
+                </a>
+              </Button>
+            </div>
           </div>
         </motion.div>
       </motion.div>
