@@ -455,38 +455,6 @@ function Pricing() {
           Commencez gratuitement. Passez au PRO pour choisir l'excellence.
         </p>
       </div>
-      {/* Bascule Mensuel / Annuel */}
-      <div className="mb-7 flex justify-center sm:mb-8">
-        <div className="clay-in flex w-full max-w-[19rem] gap-1 rounded-full bg-muted p-1.5 sm:w-auto">
-          <button
-            onClick={() => setAnnual(false)}
-            className={cn(
-              "flex flex-1 items-center justify-center rounded-full px-3 py-2 text-sm font-bold transition-all sm:flex-none sm:px-5",
-              !annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
-            )}
-          >
-            Mensuel
-          </button>
-          <button
-            onClick={() => setAnnual(true)}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-bold transition-all sm:flex-none sm:px-5",
-              annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
-            )}
-          >
-            Annuel
-            <span
-              className={cn(
-                "rounded-full px-1.5 py-0.5 text-[9px] font-extrabold whitespace-nowrap sm:px-2 sm:text-[10px]",
-                annual ? "bg-white/90 text-clay-deep" : "clay-butter text-[oklch(0.4_0.08_70)]",
-              )}
-            >
-              2 mois offerts
-            </span>
-          </button>
-        </div>
-      </div>
-
       <div className="grid gap-5 md:grid-cols-2 md:gap-8">
         <Card className="clay-card clay-ring clay-flat rounded-[2rem] border-0">
           <CardContent className="flex h-full flex-col gap-5 p-6 sm:p-8">
@@ -524,11 +492,46 @@ function Pricing() {
             Recommandé
           </Badge>
           <CardContent className="flex h-full flex-col gap-5 p-6 sm:p-8">
-            <div>
-              <h3 className="font-[Baloo_2] text-4xl font-extrabold tracking-wide text-white uppercase text-shadow-[0_2px_0_rgba(0,0,0,0.28),0_1px_4px_rgba(0,0,0,0.35)]">
-                Pro
-              </h3>
-              <p className="text-sm font-semibold text-black">100 % à votre image et Multilingue</p>
+            {/* Bascule Mensuel / Annuel — sous le badge « Recommandé », alignée à
+                droite. En ligne de « PRO » dès lg (416 px de contenu à 1024 px) ;
+                en dessous elle passe sur sa propre ligne, faute de place : à md il
+                ne reste que 288 px, moins que les ~245 px de la bascule seule.
+                Le `lg:mt-6` dégage le badge, qui occupe le coin haut-droit. */}
+            <div className="flex flex-col gap-4 lg:mt-6 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between lg:gap-4">
+              <div>
+                <h3 className="font-[Baloo_2] text-4xl font-extrabold tracking-wide text-white uppercase text-shadow-[0_2px_0_rgba(0,0,0,0.28),0_1px_4px_rgba(0,0,0,0.35)]">
+                  Pro
+                </h3>
+                <p className="text-sm font-semibold text-black">100 % à votre image et Multilingue</p>
+              </div>
+              <div className="clay-in flex w-full max-w-[19rem] shrink-0 gap-1 rounded-full bg-muted p-1.5 lg:ml-auto lg:w-auto">
+                <button
+                  onClick={() => setAnnual(false)}
+                  className={cn(
+                    "flex flex-1 items-center justify-center rounded-full px-2.5 py-2 text-sm font-bold transition-all lg:flex-none lg:px-4 lg:text-xs",
+                    !annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
+                  )}
+                >
+                  Mensuel
+                </button>
+                <button
+                  onClick={() => setAnnual(true)}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 py-2 text-sm font-bold transition-all lg:flex-none lg:px-4 lg:text-xs",
+                    annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
+                  )}
+                >
+                  Annuel
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[9px] font-extrabold whitespace-nowrap sm:px-2 sm:text-[10px]",
+                      annual ? "bg-white/90 text-clay-deep" : "clay-butter text-[oklch(0.4_0.08_70)]",
+                    )}
+                  >
+                    2 mois offerts
+                  </span>
+                </button>
+              </div>
             </div>
             <p className="font-[Baloo_2] text-4xl font-extrabold text-white sm:text-5xl">
               {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
