@@ -29,18 +29,18 @@ import {
   PRO_PRICE_EUR,
 } from "@/convex/plans";
 
-function Logo() {
+function Logo({ className = "h-9 w-auto sm:h-10" }: { className?: string }) {
   return (
-    <BrandLogo className="h-10 w-auto" />
+    <BrandLogo className={className} />
   );
 }
 
 function Nav() {
   const { isAuthenticated } = useAuth();
   return (
-    <header className="sticky top-0 z-40 px-4 pt-4">
-      <nav className="clay-card clay-ring mx-auto flex w-full max-w-6xl items-center justify-between rounded-3xl px-5 py-3 shadow-[0_10px_30px_rgba(96,110,140,0.15)]">
-        <Logo />
+    <header className="sticky top-0 z-40 px-3 pt-3 sm:px-4 sm:pt-4">
+      <nav className="clay-card clay-ring mx-auto flex w-full max-w-6xl items-center justify-between rounded-3xl px-3.5 py-2.5 sm:px-5 sm:py-3 shadow-[0_10px_30px_rgba(96,110,140,0.15)]">
+        <Logo className="h-8 w-auto shrink-0 sm:h-10" />
         <div className="hidden items-center gap-6 text-sm font-semibold text-muted-foreground md:flex">
           <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>
@@ -57,7 +57,7 @@ function Nav() {
               <Button asChild variant="ghost" className="hidden rounded-2xl font-bold sm:inline-flex">
                 <Link to="/auth">Connexion</Link>
               </Button>
-              <Button asChild className="clay-btn clay-teal rounded-2xl font-bold text-white">
+              <Button asChild className="clay-btn clay-teal shrink-0 rounded-2xl px-3 font-bold text-white sm:px-4">
                 <Link to="/auth">
                   Essai gratuit
                   <ArrowRight className="size-4" />
@@ -80,32 +80,32 @@ function Hero() {
   const [scanImgIdx, setScanImgIdx] = useState(0);
   const scanImgOk = scanImgIdx < SCAN_IMG_SRCS.length;
   return (
-    <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pt-14 pb-20 lg:grid-cols-2 lg:pt-20">
+    <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pt-10 pb-16 sm:pt-14 sm:pb-20 lg:grid-cols-2 lg:pt-20">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="flex flex-col items-start gap-6"
       >
-        <Badge className="clay-in rounded-full border-0 bg-muted px-4 py-1.5 text-sm font-bold text-accent-foreground">
+        <Badge className="clay-in max-w-full rounded-full border-0 bg-muted px-3.5 py-1.5 text-left text-xs font-bold leading-snug whitespace-normal text-accent-foreground sm:px-4 sm:text-sm">
           <Sparkles className="mr-1 size-4 text-primary" />
           Votre Carte digitale prête en quelques minutes...
         </Badge>
-        <h1 className="font-[Baloo_2] text-4xl leading-tight font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
+        <h1 className="font-[Baloo_2] text-4xl leading-tight font-extrabold tracking-tight text-balance sm:text-5xl lg:text-6xl">
           Menus digitaux,{" "}
           <span className="bg-gradient-to-r from-[oklch(0.66_0.13_210)] to-[oklch(0.72_0.14_190)] bg-clip-text text-transparent">
             à jour et traduits en temps réel
           </span>
         </h1>
-        <p className="max-w-xl text-lg text-muted-foreground">
+        <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
           Vos plats, vos photos, vos descriptifs, les allergènes réglementaires, traductions
           automatiques, apparence 100 % personnalisable et un QR code imprimable
           pour vos tables. Pensé pour les restaurants, brasseries et bistros qui veulent allier efficacité et simplicité.
         </p>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <Button
             size="lg"
-            className="clay-btn clay-teal h-12 rounded-2xl px-7 text-base font-bold text-white"
+            className="clay-btn clay-teal h-auto min-h-12 w-full rounded-2xl px-5 py-2.5 text-center text-[15px] font-bold whitespace-normal text-white sm:w-auto sm:px-7 sm:text-base"
             onClick={() => navigate("/auth")}
           >
             Créer mon menu gratuitement
@@ -114,13 +114,13 @@ function Hero() {
           <Button
             size="lg"
             variant="outline"
-            className="clay-sm h-12 rounded-2xl border-0 bg-card px-7 text-base font-bold"
+            className="clay-sm h-auto min-h-12 w-full rounded-2xl border-0 bg-card px-5 py-2.5 text-center text-[15px] font-bold sm:w-auto sm:px-7 sm:text-base"
             onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
           >
             Voir les tarifs
           </Button>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-muted-foreground">
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] font-semibold text-muted-foreground sm:mt-2 sm:gap-x-5 sm:gap-y-2 sm:text-sm">
           <span className="flex items-center gap-1.5">
             <Check className="size-4 text-primary" /> Sans carte bancaire
           </span>
@@ -148,7 +148,7 @@ function Hero() {
               animate={{ opacity: 1, x: 0, rotate: -3.5 }}
               transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ rotate: -1.5, scale: 1.02 }}
-              className="clay relative z-10 w-52 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-64 sm:-translate-y-5"
+              className="clay relative z-10 w-44 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-64 sm:-translate-y-5"
             >
               <img
                 src={SCAN_IMG_SRCS[scanImgIdx]}
@@ -182,7 +182,7 @@ function Hero() {
               animate={{ opacity: 1, x: 0, rotate: 3 }}
               transition={{ duration: 0.6, delay: 0.35 }}
               whileHover={{ rotate: 1.5, scale: 1.02 }}
-              className="clay relative z-10 -ml-8 w-48 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-60 sm:translate-y-6"
+              className="clay relative z-10 -ml-8 w-40 shrink-0 rounded-[1.75rem] bg-card p-2.5 sm:w-60 sm:translate-y-6"
             >
               <img
                 src="/mobile-menu.webp"
@@ -280,9 +280,9 @@ function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.5 }}
-          className="clay mt-11 flex items-center gap-4 rounded-[2rem] bg-card p-4 sm:gap-5 sm:p-5"
+          className="clay mt-10 flex flex-col gap-4 rounded-[2rem] bg-card p-5 sm:mt-11 sm:flex-row sm:items-center sm:gap-5"
         >
-          <div className="clay-in shrink-0 rounded-2xl bg-muted p-2.5">
+          <div className="clay-in shrink-0 self-center rounded-2xl bg-muted p-2.5 sm:self-auto">
             <img
               src="/qrcode-test.webp"
               alt="QR code donnant accès à un menu de démonstration"
@@ -369,9 +369,9 @@ function Features() {
     },
   ];
   return (
-    <section id="features" className="mx-auto w-full max-w-6xl px-4 py-16">
-      <div className="mb-12 text-center">
-        <h2 className="font-[Baloo_2] text-3xl font-extrabold sm:text-4xl">
+    <section id="features" className="mx-auto w-full max-w-6xl px-4 py-12 sm:py-16">
+      <div className="mb-8 text-center sm:mb-12">
+        <h2 className="font-[Baloo_2] text-3xl font-extrabold text-balance sm:text-4xl">
           Tout ce qu'il faut pour un menu{" "}
           <span className="text-primary">qui donne envie</span>
         </h2>
@@ -379,7 +379,7 @@ function Features() {
           Conçu avec des restaurateurs : simple à utiliser, vite indispensable pour vos clients.
         </p>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         {items.map((it, i) => (
           <motion.div
             key={it.title}
@@ -388,8 +388,8 @@ function Features() {
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.5, delay: (i % 3) * 0.1 }}
           >
-            <Card className="clay-card clay-ring clay-flat h-full gap-4 rounded-3xl border-0 py-6">
-              <CardContent className="flex flex-col gap-3 px-6">
+            <Card className="clay-card clay-ring clay-flat h-full gap-4 rounded-3xl border-0 py-5 sm:py-6">
+              <CardContent className="flex flex-col gap-3 px-5 sm:px-6">
                 <div className={`${it.bg} clay-sm flex size-13 items-center justify-center rounded-2xl`}>
                   {it.icon}
                 </div>
@@ -406,9 +406,9 @@ function Features() {
 
 function AllergenStrip() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
-      <div className="clay rounded-[2.5rem] bg-card p-8 sm:p-10">
-        <div className="grid items-center gap-8 lg:grid-cols-2">
+    <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
+      <div className="clay rounded-[2.5rem] bg-card p-6 sm:p-10">
+        <div className="grid items-center gap-6 sm:gap-8 lg:grid-cols-2">
           <div>
             <Badge className="clay-in mb-3 rounded-full border-0 bg-muted px-3 py-1 font-bold">
               Conformité France 🇫🇷
@@ -422,11 +422,11 @@ function AllergenStrip() {
               lisibles en un coup d'œil sur le menu de vos clients — en 4 langues.
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2.5">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-2.5">
             {ALLERGENS.map((a: { code: string; labelFr: string; emoji: string }) => (
               <span
                 key={a.code}
-                className="clay-sm flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-bold"
+                className="clay-sm flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1.5 text-[13px] font-bold sm:px-3 sm:text-sm"
                 title={a.labelFr}
               >
                 <span>{a.emoji}</span> {a.labelFr}
@@ -443,9 +443,9 @@ function Pricing() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(false);
   return (
-    <section id="pricing" className="mx-auto w-full max-w-5xl px-4 py-16">
-      <div className="mb-12 text-center">
-        <h2 className="font-[Baloo_2] text-3xl font-extrabold sm:text-4xl">
+    <section id="pricing" className="mx-auto w-full max-w-5xl px-4 py-12 sm:py-16">
+      <div className="mb-8 text-center sm:mb-12">
+        <h2 className="font-[Baloo_2] text-3xl font-extrabold text-balance sm:text-4xl">
           Un prix <span className="text-primary">simple et honnête</span>
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
@@ -453,12 +453,12 @@ function Pricing() {
         </p>
       </div>
       {/* Bascule Mensuel / Annuel */}
-      <div className="mb-8 flex justify-center">
-        <div className="clay-in flex gap-1 rounded-full bg-muted p-1.5">
+      <div className="mb-7 flex justify-center sm:mb-8">
+        <div className="clay-in flex w-full max-w-[19rem] gap-1 rounded-full bg-muted p-1.5 sm:w-auto">
           <button
             onClick={() => setAnnual(false)}
             className={cn(
-              "rounded-full px-5 py-2 text-sm font-bold transition-all",
+              "flex flex-1 items-center justify-center rounded-full px-3 py-2 text-sm font-bold transition-all sm:flex-none sm:px-5",
               !annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
             )}
           >
@@ -467,14 +467,14 @@ function Pricing() {
           <button
             onClick={() => setAnnual(true)}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold transition-all",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-bold transition-all sm:flex-none sm:px-5",
               annual ? "clay-btn clay-teal text-white" : "text-muted-foreground",
             )}
           >
             Annuel
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-extrabold",
+                "rounded-full px-1.5 py-0.5 text-[9px] font-extrabold whitespace-nowrap sm:px-2 sm:text-[10px]",
                 annual ? "bg-white/90 text-clay-deep" : "clay-butter text-[oklch(0.4_0.08_70)]",
               )}
             >
@@ -484,15 +484,15 @@ function Pricing() {
         </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 md:gap-8">
         <Card className="clay-card clay-ring clay-flat rounded-[2rem] border-0">
-          <CardContent className="flex h-full flex-col gap-5 p-8">
+          <CardContent className="flex h-full flex-col gap-5 p-6 sm:p-8">
             <div>
               <h3 className="font-[Baloo_2] text-3xl font-extrabold text-clay-deep">Gratuit</h3>
               <p className="text-sm text-muted-foreground">Un vrai service, rien à payer !</p>
             </div>
-            <p className="font-[Baloo_2] text-5xl font-extrabold">
-              0 €<span className="text-lg font-bold text-muted-foreground"> /mois</span>
+            <p className="font-[Baloo_2] text-4xl font-extrabold sm:text-5xl">
+              0 €<span className="text-base font-bold text-muted-foreground sm:text-lg"> /mois</span>
             </p>
             <ul className="flex-1 space-y-2.5 text-sm">
               {PLANS.FREE.features.map((f) => (
@@ -508,7 +508,7 @@ function Pricing() {
             </ul>
             <Button
               variant="outline"
-              className="clay-sm h-11 rounded-2xl border-0 bg-muted font-bold"
+              className="clay-sm h-11 w-full rounded-2xl border-0 bg-muted px-4 font-bold"
               onClick={() => navigate("/auth")}
             >
               Commencer gratuitement
@@ -517,19 +517,19 @@ function Pricing() {
         </Card>
 
         <Card className="clay-teal-deep clay-btn relative overflow-hidden rounded-[2rem] border-0">
-          <Badge className="absolute top-5 right-5 rounded-full border-0 bg-white px-3 py-1 font-extrabold text-clay-deep shadow-sm">
+          <Badge className="absolute top-4 right-4 rounded-full border-0 bg-white px-3 py-1 font-extrabold text-clay-deep shadow-sm sm:top-5 sm:right-5">
             Recommandé
           </Badge>
-          <CardContent className="flex h-full flex-col gap-5 p-8">
+          <CardContent className="flex h-full flex-col gap-5 p-6 sm:p-8">
             <div>
               <h3 className="font-[Baloo_2] text-4xl font-extrabold tracking-wide text-white uppercase text-shadow-[0_2px_0_rgba(0,0,0,0.28),0_1px_4px_rgba(0,0,0,0.35)]">
                 Pro
               </h3>
               <p className="text-sm font-semibold text-black">100 % à votre image et Multilingue</p>
             </div>
-            <p className="font-[Baloo_2] text-5xl font-extrabold text-white">
+            <p className="font-[Baloo_2] text-4xl font-extrabold text-white sm:text-5xl">
               {annual ? PRO_PRICE_ANNUAL_EUR : PRO_PRICE_EUR} €
-              <span className="text-lg font-bold text-white">
+              <span className="text-base font-bold text-white sm:text-lg">
                 {annual ? " /an" : " /mois"}
               </span>
             </p>
@@ -542,7 +542,7 @@ function Pricing() {
               ))}
             </ul>
             <Button
-              className="h-11 rounded-2xl border-0 bg-white font-bold text-clay-deep shadow-md hover:bg-white/90"
+              className="h-11 w-full rounded-2xl border-0 bg-white px-4 font-bold text-clay-deep shadow-md hover:bg-white/90"
               onClick={() =>
                 navigate(
                   annual
@@ -588,15 +588,15 @@ function Faq() {
   ];
   const [open, setOpen] = useState(0);
   return (
-    <section id="faq" className="mx-auto w-full max-w-3xl px-4 py-16">
-      <h2 className="mb-10 text-center font-[Baloo_2] text-3xl font-extrabold sm:text-4xl">
+    <section id="faq" className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
+      <h2 className="mb-6 text-center font-[Baloo_2] text-3xl font-extrabold text-balance sm:mb-10 sm:text-4xl">
         Questions fréquentes
       </h2>
       <div className="space-y-3">
         {qa.map((item, i) => (
           <div key={item.q} className="clay-flat overflow-hidden rounded-3xl bg-card">
             <button
-              className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left font-bold"
+              className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left text-[15px] font-bold leading-snug sm:gap-4 sm:px-6 sm:text-base"
               onClick={() => setOpen(open === i ? -1 : i)}
             >
               {item.q}
@@ -605,7 +605,7 @@ function Faq() {
               />
             </button>
             {open === i && (
-              <p className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
+              <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground sm:px-6">{item.a}</p>
             )}
           </div>
         ))}
@@ -617,20 +617,20 @@ function Faq() {
 function CtaBanner() {
   const navigate = useNavigate();
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 pb-20">
-      <div className="clay-teal clay relative overflow-hidden rounded-[2.5rem] px-8 py-14 text-center">
+    <section className="mx-auto w-full max-w-6xl px-4 pb-16 sm:pb-20">
+      <div className="clay-teal clay relative overflow-hidden rounded-[2.5rem] px-5 py-12 text-center sm:px-8 sm:py-14">
         <div className="pointer-events-none absolute -top-10 -left-10 size-40 rounded-full bg-white/15" />
         <div className="pointer-events-none absolute -right-14 -bottom-14 size-56 rounded-full bg-white/10" />
-        <h2 className="relative font-[Baloo_2] text-3xl font-extrabold text-white sm:text-4xl">
+        <h2 className="relative font-[Baloo_2] text-2xl font-extrabold text-balance text-white sm:text-3xl sm:text-4xl">
           Prêt à digitaliser votre carte ?
         </h2>
-        <p className="relative mx-auto mt-3 max-w-xl text-white/90">
+        <p className="relative mx-auto mt-3 max-w-xl text-sm text-white/90 sm:text-base">
           Créez votre compte, ajoutez vos plats, imprimez votre QR code.
           Vos clients scannent, vous servez.
         </p>
         <Button
           size="lg"
-          className="relative mt-8 h-12 rounded-2xl border-0 bg-white px-8 text-base font-bold text-clay-deep hover:bg-white/90"
+          className="relative mt-7 h-auto min-h-12 w-full rounded-2xl border-0 bg-white px-5 py-2.5 text-center text-[15px] font-bold whitespace-normal text-clay-deep hover:bg-white/90 sm:mt-8 sm:w-auto sm:px-8 sm:text-base"
           onClick={() => navigate("/auth")}
         >
           Essayer V'la le Menu ! gratuitement
@@ -643,11 +643,11 @@ function CtaBanner() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border/60 py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 text-sm text-muted-foreground sm:flex-row">
+    <footer className="border-t border-border/60 py-8 sm:py-10">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 text-center text-sm text-muted-foreground sm:flex-row sm:text-left">
         <Logo />
         <p>© {new Date().getFullYear()} V'la le Menu ! — Menus digitaux pour restaurateurs.</p>
-        <div className="flex flex-wrap justify-center gap-4 font-semibold">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 font-semibold">
           <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-foreground">Tarifs</a>
           <Link to="/contact" className="hover:text-foreground">Contact</Link>
@@ -665,7 +665,9 @@ export default function Landing() {
   return (
     <div className="flex min-h-screen flex-col">
       <Nav />
-      <main className="flex-1">
+      {/* `overflow-x-clip` sur <main> et non sur la racine : la racine resterait
+          le conteneur de défilement de la nav collante sur les Safari anciens. */}
+      <main className="flex-1 overflow-x-clip">
         <Hero />
         <Features />
         <AllergenStrip />
