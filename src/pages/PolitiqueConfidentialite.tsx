@@ -195,7 +195,7 @@ export default function PolitiqueConfidentialite() {
                 guard="Certifié PCI-DSS niveau 1 + DPA"
               />
               <Processor
-                name="OpenAI (via la plateforme d'intégration)"
+                name="OpenRouter (modèles OpenAI)"
                 role="traduction automatique des plats (plan Pro)"
                 data="textes des plats uniquement (noms et descriptions) — aucune donnée personnelle n'est transmise"
                 guard="API sans réutilisation des données pour l'entraînement"
@@ -206,7 +206,7 @@ export default function PolitiqueConfidentialite() {
           <Section icon={<Globe2 className="size-4 text-muted-foreground" />} title="Transferts hors Union européenne">
             <p>
               Certains prestataires sont établis aux États-Unis (Vercel,
-              Convex, Resend, Stripe, OpenAI). Ces transferts sont encadrés par
+              Convex, Resend, Stripe, OpenRouter, OpenAI). Ces transferts sont encadrés par
               une décision d'adéquation (EU-US Data Privacy Framework, pour
               Convex) ou par des clauses contractuelles types approuvées par la
               Commission européenne, assorties de mesures techniques
