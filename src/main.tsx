@@ -71,8 +71,27 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
+function ConvexGate({ children }: { children: React.ReactNode }) {
+  if (!convex) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
+        <div className="max-w-md text-center">
+          <p className="text-sm font-semibold">Configuration Convex manquante</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            La variable VITE_CONVEX_URL n&apos;est pas définie dans cet
+            environnement. Lancez le projet avec une URL de déploiement Convex
+            (par exemple via npx convex dev) ou déployez-le sur Vercel, où elle
+            est fournie par convex deploy.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return <ConvexAuthProvider client={convex}>{children}</ConvexAuthProvider>;
+}
 
 
 function RouteSyncer() {
@@ -102,7 +121,7 @@ function RouteSyncer() {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <RootErrorBoundary>
-      <ConvexAuthProvider client={convex}>
+      <ConvexGate>
         <BrowserRouter>
           <RouteSyncer />
           <Suspense fallback={<RouteLoading />}>
@@ -182,7 +201,7 @@ createRoot(document.getElementById("root")!).render(
           </Suspense>
         </BrowserRouter>
         <Toaster />
-      </ConvexAuthProvider>
+      </ConvexGate>
     </RootErrorBoundary>
   </StrictMode>,
 );
