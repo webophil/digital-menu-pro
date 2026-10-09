@@ -1,6 +1,5 @@
 "use node";
 
-import { vly } from "../lib/vly-integrations";
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -27,6 +26,51 @@ If the description text is empty, return an empty string for "description".`;
  */
 const DISHES_PER_BATCH = 20;
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const TRANSLATION_MODEL = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini";
+
+async function completeWithOpenRouter(userPrompt: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error("OPENROUTER_API_KEY manquante dans les variables Convex");
+    throw new Error(
+      "Le service de traduction est indisponible. Réessayez dans un instant.",
+    );
+  }
+
+  const res = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://vlalemenu.fr",
+      "X-Title": "VlaLeMenu",
+    },
+    body: JSON.stringify({
+      model: TRANSLATION_MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+      max_tokens: 300,
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    console.error("OpenRouter a répondu", res.status, detail.slice(0, 500));
+    throw new Error(
+      "Le service de traduction est indisponible. Réessayez dans un instant.",
+    );
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  return data.choices?.[0]?.message?.content ?? "{}";
+}
+
 async function translateOne(
   name: string,
   description: string,
@@ -34,21 +78,7 @@ async function translateOne(
   const patch: Record<string, string> = {};
   for (const lang of PRO_TRANSLATION_LANGS) {
     const userPrompt = `Language: ${LANG_NAMES[lang]}\n[name] ${name}\n[description] ${description}`;
-    const res = await vly.ai.completion({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2,
-      maxTokens: 300,
-    });
-    if (!res.success || !res.data) {
-      throw new Error(
-        "Le service de traduction est indisponible. Réessayez dans un instant.",
-      );
-    }
-    const raw = res.data.choices?.[0]?.message?.content ?? "{}";
+    const raw = await completeWithOpenRouter(userPrompt);
     let parsed: { name?: string; description?: string };
     try {
       parsed = JSON.parse(extractJson(raw));
