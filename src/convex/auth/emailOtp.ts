@@ -17,72 +17,39 @@ export const emailOtp = Email({
   },
   async sendVerificationRequest({ identifier: email, token }) {
     const resendKey = process.env.RESEND_API_KEY;
-
-    if (resendKey) {
-      try {
-        // Expéditeur personnalisé « V'la le Menu ! » (domaine vérifié chez
-        // Resend — sinon onboarding@resend.dev pour les tests).
-        await axios.post(
-          "https://api.resend.com/emails",
-          {
-            from:
-              process.env.RESEND_FROM ??
-              "V'la le Menu ! <menu@vlalemenu.fr>",
-            to: email,
-            reply_to: "contact@vlalemenu.fr",
-            subject: "Votre code de connexion — V'la le Menu !",
-            html: otpEmailHtml(token),
-            text: otpEmailText(token),
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${resendKey}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        return;
-      } catch (error) {
-        console.error(
-          "[auth] Envoi Resend impossible, repli sur le service interne :",
-          error instanceof Error ? error.message : error,
-        );
-      }
+    // On échoue explicitement plutôt que d'avaler l'erreur : sinon
+    // l'utilisateur croit avoir reçu un code qui n'a jamais été envoyé.
+    if (!resendKey) {
+      throw new Error("RESEND_API_KEY est absent de l'environnement Convex.");
     }
 
-    // Repli : service email Freebuff (template non personnalisable) —
-    // garantit que les connexions continuent de fonctionner quand Resend
-    // n'est pas configuré.
-    //
-    // La clé est lue dans l'environnement Convex (à saisir via l'onglet
-    // Clés/API de Freebuff) et n'est PLUS écrite dans le dépôt : une clé
-    // versionnée est exposée à tout clone du dépôt et ne peut plus être
-    // révoquée individuellement.
-    const freebuffKey = process.env.FREEBUFF_EMAIL_API_KEY;
-    if (!freebuffKey) {
-      // Ni Resend ni le repli Freebuff : on le dit explicitement plutôt que
-      // d'avaler l'échec, sinon l'utilisateur croit avoir reçu un code
-      // qui n'a jamais été envoyé.
-      throw new Error(
-        "Aucun service d'envoi d'email n'est configuré (RESEND_API_KEY ou FREEBUFF_EMAIL_API_KEY absent).",
-      );
-    }
     try {
       await axios.post(
-        "https://auth.freebuff.app/send_otp",
+        "https://api.resend.com/emails",
         {
+          from:
+            process.env.RESEND_FROM ?? "V'la le Menu ! <menu@vlalemenu.fr>",
           to: email,
-          otp: token,
-          appName: process.env.VLY_APP_NAME || "V'la le Menu !",
+          reply_to: "contact@vlalemenu.fr",
+          subject: "Votre code de connexion — V'la le Menu !",
+          html: otpEmailHtml(token),
+          text: otpEmailText(token),
         },
         {
           headers: {
-            "x-api-key": freebuffKey,
+            Authorization: `Bearer ${resendKey}`,
+            "Content-Type": "application/json",
           },
         },
       );
     } catch (error) {
-      throw new Error(JSON.stringify(error));
+      const detail = axios.isAxiosError(error)
+        ? JSON.stringify(error.response?.data ?? error.message)
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      console.error("[auth] Envoi Resend impossible :", detail);
+      throw new Error("Impossible d'envoyer le code de connexion.");
     }
   },
 });
