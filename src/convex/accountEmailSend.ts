@@ -39,51 +39,41 @@ export const requestEmailChange = action({
 });
 
 /**
- * Envoi du code. Même chaîne de services que la connexion (Resend, puis le
- * service email Freebuff en repli) : si aucun n'est configuré, on le dit
+ * Envoi du code via Resend, comme pour la connexion. En cas d'échec on le dit
  * explicitement plutôt que de laisser croire que le code est parti.
  */
 async function sendCodeEmail(to: string, code: string) {
   const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey) {
-    try {
-      await axios.post(
-        "https://api.resend.com/emails",
-        {
-          from:
-            process.env.RESEND_FROM ?? "V'la le Menu ! <menu@vlalemenu.fr>",
-          to,
-          reply_to: "contact@vlalemenu.fr",
-          subject: "Confirmez votre nouvelle adresse — V'la le Menu !",
-          html: codeHtml(code),
-          text: codeText(code),
-        },
-        { headers: { Authorization: `Bearer ${resendKey}` } },
-      );
-      return;
-    } catch (error) {
-      console.error(
-        "[email] Envoi Resend impossible, repli sur le service interne :",
-        error instanceof Error ? error.message : error,
-      );
-    }
-  }
-
-  const freebuffKey = process.env.FREEBUFF_EMAIL_API_KEY;
-  if (!freebuffKey) {
+  if (!resendKey) {
     throw new Error(
       "Aucun service d'envoi d'email n'est configuré. Contactez le support (contact@vlalemenu.fr).",
     );
   }
-  await axios.post(
-    "https://auth.freebuff.app/send_otp",
-    {
-      to,
-      otp: code,
-      appName: process.env.VLY_APP_NAME || "V'la le Menu !",
-    },
-    { headers: { "x-api-key": freebuffKey } },
-  );
+
+  try {
+    await axios.post(
+      "https://api.resend.com/emails",
+      {
+        from: process.env.RESEND_FROM ?? "V'la le Menu ! <menu@vlalemenu.fr>",
+        to,
+        reply_to: "contact@vlalemenu.fr",
+        subject: "Confirmez votre nouvelle adresse — V'la le Menu !",
+        html: codeHtml(code),
+        text: codeText(code),
+      },
+      { headers: { Authorization: `Bearer ${resendKey}` } },
+    );
+  } catch (error) {
+    const detail = axios.isAxiosError(error)
+      ? JSON.stringify(error.response?.data ?? error.message)
+      : error instanceof Error
+        ? error.message
+        : String(error);
+    console.error("[email] Envoi Resend impossible :", detail);
+    throw new Error(
+      "Impossible d'envoyer le code de confirmation. Réessayez dans un instant.",
+    );
+  }
 }
 
 function codeText(code: string) {
