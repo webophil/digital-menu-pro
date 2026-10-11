@@ -247,6 +247,7 @@ const schema = defineSchema(
       headerDivider: v.optional(oneOf(DIVIDER_VALUES)),
       headerMark: v.optional(oneOf(HEADER_MARK_VALUES)),
       headerIcon: v.optional(oneOf(HEADER_ICON_VALUES)),
+      showName: v.optional(v.boolean()),
       showTagline: v.optional(v.boolean()),
       showCity: v.optional(v.boolean()),
       showPhone: v.optional(v.boolean()),

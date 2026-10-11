@@ -6,10 +6,11 @@ import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 
-const LOGO_MAX_DIM = 512;
+const LOGO_MAX_DIM = 1024;
 
 /**
- * Téléversement du logo : conversion WebP (512 px max) côté navigateur, envoi
+ * Téléversement du logo : conversion WebP (1024 px max, assez net pour 80 % de
+ * la largeur d'un mobile haute densité) côté navigateur, envoi
  * direct vers le stockage Convex. Le fichier n'est rattaché au restaurant
  * qu'à l'enregistrement de l'apparence ; d'ici là, seul l'aperçu change.
  */

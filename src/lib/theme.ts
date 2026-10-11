@@ -209,6 +209,7 @@ export interface AppearanceSettings {
   headerDivider: Divider;
   headerMark: HeaderMark;
   headerIcon: HeaderIcon;
+  showName: boolean;
   showTagline: boolean;
   showCity: boolean;
   showPhone: boolean;
@@ -245,6 +246,7 @@ export const HEADER_KEYS = [
   "headerDivider",
   "headerMark",
   "headerIcon",
+  "showName",
   "showTagline",
   "showCity",
   "showPhone",
@@ -282,6 +284,7 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   headerDivider: "line",
   headerMark: "icon",
   headerIcon: "utensils",
+  showName: true,
   showTagline: true,
   showCity: true,
   showPhone: true,
@@ -334,6 +337,7 @@ export function resolveAppearance(
     headerDivider: core.divider,
     headerMark: "icon",
     headerIcon: "utensils",
+    showName: true,
     showTagline: true,
     showCity: true,
     showPhone: true,

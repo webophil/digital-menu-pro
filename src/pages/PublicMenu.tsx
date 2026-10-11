@@ -391,7 +391,16 @@ export function MenuPreview({
             color: "var(--m-on-header)",
           }}
         >
-          {headerMark !== "none" && (
+          {headerMark === "logo" && logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={theme.showName ? "" : name}
+              className={cn(
+                "mb-4 h-auto max-h-72 w-4/5 object-contain",
+                centered ? "mx-auto object-center" : "object-left",
+              )}
+            />
+          ) : headerMark !== "none" ? (
             <div
               className={cn(
                 "mb-4 flex size-16 items-center justify-center overflow-hidden rounded-[1.5rem]",
@@ -399,18 +408,12 @@ export function MenuPreview({
               )}
               style={{ background: "var(--m-on-header-soft)" }}
             >
-              {headerMark === "logo" && logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt=""
-                  className="size-full object-contain p-1.5"
-                />
-              ) : (
-                <HeaderIcon id={theme.headerIcon} className="size-8" />
-              )}
+              <HeaderIcon id={theme.headerIcon} className="size-8" />
             </div>
-          )}
-          <h1 className="font-brand text-3xl">{name}</h1>
+          ) : null}
+          <h1 className={theme.showName ? "font-brand text-3xl" : "sr-only"}>
+            {name}
+          </h1>
           {theme.showTagline && tagline && (
             <p className="mt-1.5 text-sm opacity-[0.85]">{tagline}</p>
           )}

@@ -239,6 +239,17 @@ export function HeaderPanel({
         <div className="space-y-2">
           <SubTitle>Informations affichées</SubTitle>
           <ToggleRow
+            id="show-name"
+            label="Nom de l'établissement"
+            hint={
+              settings.headerMark === "logo"
+                ? "Décochez si votre logo contient déjà le nom."
+                : undefined
+            }
+            checked={settings.showName}
+            onChange={(c) => onPatch({ showName: c })}
+          />
+          <ToggleRow
             id="show-tagline"
             label="Slogan"
             checked={settings.showTagline}
