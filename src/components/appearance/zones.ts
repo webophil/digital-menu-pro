@@ -21,6 +21,7 @@ export const ZONE_KEYS: Record<
     "headerAlign",
     "headerDivider",
     "headerMark",
+    "headerIcon",
     "showTagline",
     "showCity",
     "showPhone",

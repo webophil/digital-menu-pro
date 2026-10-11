@@ -1,6 +1,10 @@
+import { HeaderIcon } from "@/components/HeaderIcon";
+import { cn } from "@/lib/utils";
 import {
   HEADER_ALIGN_META,
   HEADER_ALIGN_VALUES,
+  HEADER_ICON_META,
+  HEADER_ICON_VALUES,
   HEADER_MARK_META,
   HEADER_MARK_VALUES,
   HEADER_STYLE_META,
@@ -11,10 +15,11 @@ import {
   shade,
   type AppearanceSettings,
   type HeaderAlign,
+  type HeaderIcon as HeaderIconId,
   type HeaderMark,
   type HeaderStyle,
 } from "@/lib/theme";
-import { ImageIcon, LayoutTemplate, UtensilsCrossed } from "lucide-react";
+import { ImageIcon, LayoutTemplate } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 import { dividerOptions } from "./options";
@@ -49,7 +54,7 @@ export function HeaderPanel({
   const markPreviews: Record<HeaderMark, ReactNode> = {
     icon: (
       <span className="flex h-8 items-center justify-center">
-        <UtensilsCrossed className="size-5" />
+        <HeaderIcon id={settings.headerIcon} className="size-5" />
       </span>
     ),
     logo: (
@@ -97,6 +102,36 @@ export function HeaderPanel({
             }))}
             onChange={(m: HeaderMark) => onPatch({ headerMark: m })}
           />
+          {settings.headerMark === "icon" && (
+            <div
+              role="radiogroup"
+              aria-label="Choix de l'icône"
+              className="grid grid-cols-4 gap-2 pt-1"
+            >
+              {HEADER_ICON_VALUES.map((id: HeaderIconId) => {
+                const selected = settings.headerIcon === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={HEADER_ICON_META[id]}
+                    title={HEADER_ICON_META[id]}
+                    onClick={() => onPatch({ headerIcon: id })}
+                    className={cn(
+                      "flex aspect-square items-center justify-center rounded-2xl transition-all",
+                      selected
+                        ? "clay-btn clay-teal text-white"
+                        : "clay-sm bg-card text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <HeaderIcon id={id} className="size-6" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {settings.headerMark === "logo" && (
             <LogoUploader logoUrl={logoUrl} onChange={onLogoChange} />
           )}

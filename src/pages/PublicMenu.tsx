@@ -26,6 +26,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { BrandLogo } from "@/components/Logo";
+import { HeaderIcon } from "@/components/HeaderIcon";
 
 const TYPE_EMOJI: Record<string, string> = {
   carte: "📖",
@@ -405,7 +406,7 @@ export function MenuPreview({
                   className="size-full object-contain p-1.5"
                 />
               ) : (
-                <UtensilsCrossed className="size-8" />
+                <HeaderIcon id={theme.headerIcon} className="size-8" />
               )}
             </div>
           )}
