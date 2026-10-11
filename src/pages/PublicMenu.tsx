@@ -303,6 +303,9 @@ export function MenuPreview({
   // Marque « logo » sans fichier : on retombe sur l'icône plutôt qu'un vide.
   const headerMark =
     theme.headerMark === "logo" && !logoUrl ? "icon" : theme.headerMark;
+  const logoDisplayed = headerMark === "logo" && Boolean(logoUrl);
+  // Sans logo affiché, le nom textuel reste le repli naturel : il ne peut pas être masqué.
+  const showName = theme.showName || !logoDisplayed;
   const showCity = theme.showCity && Boolean(restaurant.city);
   const showPhone = theme.showPhone && Boolean(restaurant.phone);
 
@@ -394,7 +397,7 @@ export function MenuPreview({
           {headerMark === "logo" && logoUrl ? (
             <img
               src={logoUrl}
-              alt={theme.showName ? "" : name}
+              alt={showName ? "" : name}
               className={cn(
                 "mb-4 h-auto max-h-72 w-4/5 object-contain",
                 centered ? "mx-auto object-center" : "object-left",
@@ -411,7 +414,7 @@ export function MenuPreview({
               <HeaderIcon id={theme.headerIcon} className="size-8" />
             </div>
           ) : null}
-          <h1 className={theme.showName ? "font-brand text-3xl" : "sr-only"}>
+          <h1 className={showName ? "font-brand text-3xl" : "sr-only"}>
             {name}
           </h1>
           {theme.showTagline && tagline && (

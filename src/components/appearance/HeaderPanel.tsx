@@ -48,6 +48,8 @@ export function HeaderPanel({
   onResetZone?: () => void;
   onActivate?: () => void;
 }) {
+  const logoDisplayed = settings.headerMark === "logo" && Boolean(logoUrl);
+
   const headerBgFor = (hs: HeaderStyle) =>
     appearanceCssVars({ ...settings, headerStyle: hs })["--m-header-bg"];
 
@@ -242,11 +244,12 @@ export function HeaderPanel({
             id="show-name"
             label="Nom de l'établissement"
             hint={
-              settings.headerMark === "logo"
+              logoDisplayed
                 ? "Décochez si votre logo contient déjà le nom."
-                : undefined
+                : "Toujours affiché tant qu'aucun logo n'est affiché."
             }
-            checked={settings.showName}
+            checked={logoDisplayed ? settings.showName : true}
+            disabled={!logoDisplayed}
             onChange={(c) => onPatch({ showName: c })}
           />
           <ToggleRow
