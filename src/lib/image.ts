@@ -26,12 +26,12 @@ export function isAcceptedImage(file: File) {
  * ils sont convertis en WebP animé par le navigateur quand possible, sinon
  * première frame — acceptable pour des photos de plats.
  */
-export async function convertToWebp(file: File): Promise<Blob> {
+export async function convertToWebp(
+  file: File,
+  maxDim: number = PHOTO_MAX_DIM,
+): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(
-    1,
-    PHOTO_MAX_DIM / Math.max(bitmap.width, bitmap.height),
-  );
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
   const w = Math.max(1, Math.round(bitmap.width * scale));
   const h = Math.max(1, Math.round(bitmap.height * scale));
 
