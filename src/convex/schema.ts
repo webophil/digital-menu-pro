@@ -10,6 +10,8 @@ import {
   HEADING_FONT_VALUES,
   BODY_FONT_VALUES,
   MODE_VALUES,
+  HEADER_ALIGN_VALUES,
+  HEADER_MARK_VALUES,
   PHOTO_SHAPE_VALUES,
   PRICE_STYLE_VALUES,
   TEXTURE_VALUES,
@@ -232,6 +234,23 @@ const schema = defineSchema(
       headerStyle: oneOf(HEADER_STYLE_VALUES),
       texture: oneOf(TEXTURE_VALUES),
       photoShape: oneOf(PHOTO_SHAPE_VALUES),
+      // En-tête : zone de personnalisation à part entière. Tous les champs
+      // sont optionnels car les lignes existantes ne les ont pas ;
+      // resolveAppearance() leur donne la valeur historique correspondante.
+      headerFont: v.optional(oneOf(HEADING_FONT_VALUES)),
+      headerCase: v.optional(oneOf(HEADING_CASE_VALUES)),
+      headerFollowAccent: v.optional(v.boolean()),
+      headerColor: v.optional(v.string()),
+      headerColor2: v.optional(v.string()),
+      headerAlign: v.optional(oneOf(HEADER_ALIGN_VALUES)),
+      headerDivider: v.optional(oneOf(DIVIDER_VALUES)),
+      headerMark: v.optional(oneOf(HEADER_MARK_VALUES)),
+      showTagline: v.optional(v.boolean()),
+      showCity: v.optional(v.boolean()),
+      showPhone: v.optional(v.boolean()),
+      // Logo de l'établissement (fichier WebP, plan Pro) et ambiance de départ
+      logoStorageId: v.optional(v.id("_storage")),
+      ambianceId: v.optional(v.string()),
       updatedAt: v.number(),
     }).index("by_restaurant", ["restaurantId"]),
 

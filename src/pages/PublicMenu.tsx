@@ -200,17 +200,17 @@ function MenuDivider({
   tone = "accent",
 }: {
   kind: Divider;
-  tone?: "accent" | "onAccent";
+  tone?: "accent" | "onHeader";
 }) {
   if (kind === "none") return null;
   const color =
-    tone === "onAccent" ? "var(--m-on-accent)" : "var(--m-accent)";
+    tone === "onHeader" ? "var(--m-on-header)" : "var(--m-accent)";
   const side = (
     <span
       className="h-px max-w-16 flex-1 rounded-full"
       style={{
         background:
-          tone === "onAccent" ? "var(--m-on-accent-soft)" : "var(--m-border)",
+          tone === "onHeader" ? "var(--m-on-header-soft)" : "var(--m-border)",
       }}
     />
   );
@@ -284,7 +284,7 @@ export function MenuPreview({
 }: {
   restaurant: Doc<"restaurants">;
   menus: Doc<"menus">[] | undefined;
-  appearance?: Partial<AppearanceSettings> | null;
+  appearance?: (Partial<AppearanceSettings> & { logoUrl?: string | null }) | null;
   className?: string;
 }) {
   const [lang, setLang] = useState<LangCode>("fr");
@@ -297,6 +297,13 @@ export function MenuPreview({
     [theme],
   );
   const texture = TEXTURE_STYLES[theme.texture];
+  const centered = theme.headerAlign === "center";
+  const logoUrl = appearance?.logoUrl ?? null;
+  // Marque « logo » sans fichier : on retombe sur l'icône plutôt qu'un vide.
+  const headerMark =
+    theme.headerMark === "logo" && !logoUrl ? "icon" : theme.headerMark;
+  const showCity = theme.showCity && Boolean(restaurant.city);
+  const showPhone = theme.showPhone && Boolean(restaurant.phone);
 
   const menu = useMemo(
     () => menus?.find((m) => m._id === (activeMenuId ?? menus[0]?._id)),
@@ -373,39 +380,63 @@ export function MenuPreview({
       <div className="relative z-10 flex min-h-full flex-1 flex-col">
         {/* En-tête vitrine */}
         <header
-          className="px-6 pt-10 pb-12 text-center"
+          data-zone="header"
+          className={cn(
+            "px-6 pt-10 pb-12",
+            centered ? "text-center" : "text-left",
+          )}
           style={{
             background: "var(--m-header-bg)",
-            color: "var(--m-on-accent)",
+            color: "var(--m-on-header)",
           }}
         >
-          <div
-            className="mx-auto mb-4 flex size-16 items-center justify-center rounded-[1.5rem]"
-            style={{ background: "var(--m-on-accent-soft)" }}
-          >
-            <UtensilsCrossed className="size-8" />
-          </div>
-          <h1 className="font-head text-3xl">{name}</h1>
-          {tagline && (
-            <p className="mt-1.5 text-sm opacity-[0.85]">{tagline}</p>
-          )}
-          {theme.divider !== "none" && (
-            <div className="mx-auto mt-3 max-w-56">
-              <MenuDivider kind={theme.divider} tone="onAccent" />
+          {headerMark !== "none" && (
+            <div
+              className={cn(
+                "mb-4 flex size-16 items-center justify-center overflow-hidden rounded-[1.5rem]",
+                centered && "mx-auto",
+              )}
+              style={{ background: "var(--m-on-header-soft)" }}
+            >
+              {headerMark === "logo" && logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="size-full object-contain p-1.5"
+                />
+              ) : (
+                <UtensilsCrossed className="size-8" />
+              )}
             </div>
           )}
-          <div className="mt-3 flex items-center justify-center gap-4 text-xs font-semibold opacity-[0.85]">
-            {restaurant.city && (
-              <span className="flex items-center gap-1">
-                <MapPin className="size-3.5" /> {restaurant.city}
-              </span>
-            )}
-            {restaurant.phone && (
-              <a href={`tel:${restaurant.phone}`} className="flex items-center gap-1">
-                <Phone className="size-3.5" /> {restaurant.phone}
-              </a>
-            )}
-          </div>
+          <h1 className="font-brand text-3xl">{name}</h1>
+          {theme.showTagline && tagline && (
+            <p className="mt-1.5 text-sm opacity-[0.85]">{tagline}</p>
+          )}
+          {theme.headerDivider !== "none" && (
+            <div className={cn("mt-3 max-w-56", centered && "mx-auto")}>
+              <MenuDivider kind={theme.headerDivider} tone="onHeader" />
+            </div>
+          )}
+          {showCity || showPhone ? (
+            <div
+              className={cn(
+                "mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold opacity-[0.85]",
+                centered ? "justify-center" : "justify-start",
+              )}
+            >
+              {showCity && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="size-3.5" /> {restaurant.city}
+                </span>
+              )}
+              {showPhone && (
+                <a href={`tel:${restaurant.phone}`} className="flex items-center gap-1">
+                  <Phone className="size-3.5" /> {restaurant.phone}
+                </a>
+              )}
+            </div>
+          ) : null}
         </header>
 
         {/* Sélecteur de menu */}
@@ -477,13 +508,14 @@ export function MenuPreview({
               Le menu arrive bientôt !
             </p>
           )}
-          {categories?.map((cat) => {
+          {categories?.map((cat, catIndex) => {
             const open = openCats[cat._id] ?? true;
             const dishes = (dishesLists ?? []).filter((d) => d.categoryId === cat._id);
             const catName = localize(cat.name, cat.nameEn, cat.nameEs, cat.nameDe);
             return (
               <section
                 key={cat._id}
+                data-zone={catIndex === 0 ? "categories" : undefined}
                 className={cn(
                   "overflow-hidden rounded-3xl",
                   CARD_STYLE_CLASS[theme.cardStyle],
@@ -530,7 +562,7 @@ export function MenuPreview({
                     {dishes.length === 0 && (
                       <p className="px-1 text-xs m-muted">—</p>
                     )}
-                    {dishes.map((d) => {
+                    {dishes.map((d, dishIndex) => {
                       const dName = localize(d.name, d.nameEn, d.nameEs, d.nameDe);
                       const dDesc = localize(
                         d.description ?? undefined,
@@ -542,7 +574,13 @@ export function MenuPreview({
                         photosByDish?.[d._id] ??
                         (d.imageUrl ? [{ url: d.imageUrl }] : []);
                       return (
-                        <article key={d._id} className="flex gap-3">
+                        <article
+                          key={d._id}
+                          data-zone={
+                            catIndex === 0 && dishIndex === 0 ? "dishes" : undefined
+                          }
+                          className="flex gap-3"
+                        >
                           {dPhotos.length > 0 && (
                             <DishPhotos
                               photos={dPhotos}

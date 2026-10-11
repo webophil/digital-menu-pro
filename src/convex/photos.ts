@@ -19,7 +19,7 @@ async function requireOwnedDish(ctx: any, dishId: any, userId: any) {
  * Renvoie la fiche de propriété d'un fichier photo, si elle existe.
  * Index `by_storage` : une seule fiche par fichier.
  */
-async function findPhotoFile(ctx: any, storageId: Id<"_storage">) {
+export async function findPhotoFile(ctx: any, storageId: Id<"_storage">) {
   return await ctx.db
     .query("photoFiles")
     .withIndex("by_storage", (q: any) => q.eq("storageId", storageId))
@@ -76,7 +76,7 @@ async function assertOwnedPhotoFile(
 }
 
 /** Premier plat référençant ce fichier (hors plat exclu), ou null. */
-async function findDishReferencing(
+export async function findDishReferencing(
   ctx: any,
   storageId: Id<"_storage">,
   excludeDishId?: Id<"dishes">,

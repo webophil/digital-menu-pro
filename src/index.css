@@ -218,6 +218,12 @@
     font-weight: var(--m-head-weight, 800);
     text-transform: var(--m-head-transform, none);
   }
+  /* Nom de l'établissement : police propre à l'en-tête, indépendante des titres */
+  .font-brand {
+    font-family: var(--m-font-brand, "Baloo 2");
+    font-weight: var(--m-brand-weight, 800);
+    text-transform: var(--m-brand-transform, none);
+  }
   /* Texte secondaire du menu (descriptions, mentions) */
   .m-muted {
     color: var(--m-muted, inherit);
