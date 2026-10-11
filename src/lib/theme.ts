@@ -41,6 +41,21 @@ export const TEXTURE_VALUES = ["none", "paper", "dots", "grid", "lines"] as cons
 export const PHOTO_SHAPE_VALUES = ["rounded", "circle", "square"] as const;
 export const HEADER_ALIGN_VALUES = ["center", "left"] as const;
 export const HEADER_MARK_VALUES = ["icon", "logo", "none"] as const;
+export const HEADER_ICON_VALUES = [
+  "utensils",
+  "couverts",
+  "chef",
+  "wine",
+  "beer",
+  "coffee",
+  "pizza",
+  "fish",
+  "salad",
+  "croissant",
+  "cake",
+  "icecream",
+  "soup",
+] as const;
 
 export type Mode = (typeof MODE_VALUES)[number];
 export type HeadingCase = (typeof HEADING_CASE_VALUES)[number];
@@ -53,6 +68,7 @@ export type Texture = (typeof TEXTURE_VALUES)[number];
 export type PhotoShape = (typeof PHOTO_SHAPE_VALUES)[number];
 export type HeaderAlign = (typeof HEADER_ALIGN_VALUES)[number];
 export type HeaderMark = (typeof HEADER_MARK_VALUES)[number];
+export type HeaderIcon = (typeof HEADER_ICON_VALUES)[number];
 
 // ---- Polices (auto-hébergées dans /public/fonts, aucune donnée à Google) ----
 
@@ -192,6 +208,8 @@ export interface AppearanceSettings {
   headerAlign: HeaderAlign;
   headerDivider: Divider;
   headerMark: HeaderMark;
+  headerIcon: HeaderIcon;
+  showName: boolean;
   showTagline: boolean;
   showCity: boolean;
   showPhone: boolean;
@@ -227,6 +245,8 @@ export const HEADER_KEYS = [
   "headerAlign",
   "headerDivider",
   "headerMark",
+  "headerIcon",
+  "showName",
   "showTagline",
   "showCity",
   "showPhone",
@@ -263,6 +283,8 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   headerAlign: "center",
   headerDivider: "line",
   headerMark: "icon",
+  headerIcon: "utensils",
+  showName: true,
   showTagline: true,
   showCity: true,
   showPhone: true,
@@ -314,6 +336,8 @@ export function resolveAppearance(
     headerAlign: "center",
     headerDivider: core.divider,
     headerMark: "icon",
+    headerIcon: "utensils",
+    showName: true,
     showTagline: true,
     showCity: true,
     showPhone: true,
@@ -678,6 +702,22 @@ export const HEADER_MARK_META: Record<HeaderMark, string> = {
   icon: "Icône",
   logo: "Logo",
   none: "Aucun",
+};
+
+export const HEADER_ICON_META: Record<HeaderIcon, string> = {
+  utensils: "Couverts croisés",
+  couverts: "Fourchette et couteau",
+  chef: "Toque",
+  wine: "Verre de vin",
+  beer: "Bière",
+  coffee: "Café",
+  pizza: "Pizza",
+  fish: "Poisson",
+  salad: "Salade",
+  croissant: "Croissant",
+  cake: "Pâtisserie",
+  icecream: "Glace",
+  soup: "Soupe",
 };
 
 export const PHOTO_SHAPE_META: Record<PhotoShape, string> = {

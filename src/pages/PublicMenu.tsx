@@ -26,6 +26,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { BrandLogo } from "@/components/Logo";
+import { HeaderIcon } from "@/components/HeaderIcon";
 
 const TYPE_EMOJI: Record<string, string> = {
   carte: "📖",
@@ -302,6 +303,9 @@ export function MenuPreview({
   // Marque « logo » sans fichier : on retombe sur l'icône plutôt qu'un vide.
   const headerMark =
     theme.headerMark === "logo" && !logoUrl ? "icon" : theme.headerMark;
+  const logoDisplayed = headerMark === "logo" && Boolean(logoUrl);
+  // Sans logo affiché, le nom textuel reste le repli naturel : il ne peut pas être masqué.
+  const showName = theme.showName || !logoDisplayed;
   const showCity = theme.showCity && Boolean(restaurant.city);
   const showPhone = theme.showPhone && Boolean(restaurant.phone);
 
@@ -390,7 +394,16 @@ export function MenuPreview({
             color: "var(--m-on-header)",
           }}
         >
-          {headerMark !== "none" && (
+          {headerMark === "logo" && logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={showName ? "" : name}
+              className={cn(
+                "mb-4 h-auto max-h-72 w-4/5 object-contain",
+                centered ? "mx-auto object-center" : "object-left",
+              )}
+            />
+          ) : headerMark !== "none" ? (
             <div
               className={cn(
                 "mb-4 flex size-16 items-center justify-center overflow-hidden rounded-[1.5rem]",
@@ -398,18 +411,12 @@ export function MenuPreview({
               )}
               style={{ background: "var(--m-on-header-soft)" }}
             >
-              {headerMark === "logo" && logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt=""
-                  className="size-full object-contain p-1.5"
-                />
-              ) : (
-                <UtensilsCrossed className="size-8" />
-              )}
+              <HeaderIcon id={theme.headerIcon} className="size-8" />
             </div>
-          )}
-          <h1 className="font-brand text-3xl">{name}</h1>
+          ) : null}
+          <h1 className={showName ? "font-brand text-3xl" : "sr-only"}>
+            {name}
+          </h1>
           {theme.showTagline && tagline && (
             <p className="mt-1.5 text-sm opacity-[0.85]">{tagline}</p>
           )}

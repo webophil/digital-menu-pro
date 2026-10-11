@@ -182,22 +182,37 @@ export function ToggleRow({
   hint,
   checked,
   onChange,
+  disabled = false,
 }: {
   id: string;
   label: string;
   hint?: string;
   checked: boolean;
   onChange: (next: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3">
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3",
+        disabled && "opacity-60",
+      )}
+    >
       <div className="min-w-0">
-        <Label htmlFor={id} className="cursor-pointer font-bold">
+        <Label
+          htmlFor={id}
+          className={cn("font-bold", disabled ? "cursor-not-allowed" : "cursor-pointer")}
+        >
           {label}
         </Label>
         {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onChange}
+        disabled={disabled}
+      />
     </div>
   );
 }
