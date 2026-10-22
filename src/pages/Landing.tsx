@@ -20,8 +20,10 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { ALLERGENS, cn } from "@/lib/utils";
 import {
   PLANS,
@@ -32,6 +34,57 @@ import {
 function Logo({ className = "h-9 w-auto sm:h-10" }: { className?: string }) {
   return (
     <BrandLogo className={className} />
+  );
+}
+
+const DEMO_MENU_SLUG = "mmqnzu";
+
+const PublicMenuModal = lazy(() =>
+  import("@/components/PublicMenuModal").then((m) => ({
+    default: m.PublicMenuModal,
+  })),
+);
+
+/**
+ * Ouvre le menu de démonstration dans la même modale « mobile » que le
+ * bouton « Voir le menu client » du dashboard. Si la démo est introuvable,
+ * on retombe sur la page publique dans un nouvel onglet.
+ */
+function DemoMenuButton() {
+  const [open, setOpen] = useState(false);
+  const restaurant = useQuery(api.publicMenu.getPublicRestaurant, {
+    slug: DEMO_MENU_SLUG,
+  });
+
+  const handleClick = () => {
+    if (restaurant === null) {
+      window.open(`/m/${DEMO_MENU_SLUG}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={handleClick}
+        disabled={restaurant === undefined}
+        className="clay-sm h-auto rounded-full bg-muted px-4 py-2 text-base font-bold text-foreground hover:bg-muted/70 sm:px-5 sm:text-lg"
+      >
+        Ouvrir le MENU DEMO
+      </Button>
+      {restaurant && open ? (
+        <Suspense fallback={null}>
+          <PublicMenuModal
+            open={open}
+            onOpenChange={setOpen}
+            restaurant={restaurant}
+          />
+        </Suspense>
+      ) : null}
+    </>
   );
 }
 
@@ -299,19 +352,7 @@ function Hero() {
                 `justify-center` centre réellement le bouton quelle que soit
                 l'ordre des utilitaires `display` dans la feuille CSS. */}
             <div className="mt-3 flex justify-center">
-              <Button
-                asChild
-                variant="ghost"
-                className="clay-sm h-auto rounded-full bg-muted px-4 py-2 text-base font-bold text-foreground hover:bg-muted/70 sm:px-5 sm:text-lg"
-              >
-                <a
-                  href="https://vlalemenu.fr/m/mmqnzu"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Ouvrir le MENU DEMO
-                </a>
-              </Button>
+              <DemoMenuButton />
             </div>
           </div>
         </motion.div>

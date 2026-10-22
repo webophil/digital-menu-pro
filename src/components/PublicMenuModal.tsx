@@ -8,7 +8,7 @@ import {
 import { MenuPreview } from "@/pages/PublicMenu";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import { useQuery } from "convex/react";
 
 /**
@@ -51,11 +51,19 @@ export function PublicMenuModal({
           <Button
             asChild
             variant="outline"
-            className="clay-sm h-9 rounded-2xl border-0 bg-card text-sm font-bold"
+            className="clay-sm hidden h-9 rounded-2xl border-0 bg-card text-sm font-bold sm:inline-flex"
           >
             <a href={`/m/${restaurant.slug}`} target="_blank" rel="noreferrer">
               <ExternalLink className="size-3.5" /> Ouvrir dans un onglet
             </a>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="clay-sm h-10 w-full rounded-2xl border-0 bg-card text-sm font-bold sm:hidden"
+          >
+            <X className="size-4" /> Fermer
           </Button>
         </DialogFooter>
       </DialogContent>
