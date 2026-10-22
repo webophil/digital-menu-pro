@@ -173,17 +173,6 @@ function Hero() {
             Voir les tarifs
           </Button>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] font-semibold text-muted-foreground sm:mt-2 sm:gap-x-5 sm:gap-y-2 sm:text-sm">
-          <span className="flex items-center gap-1.5">
-            <Check className="size-4 text-primary" /> Sans carte bancaire
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Check className="size-4 text-primary" /> Plan gratuit à vie
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Check className="size-4 text-primary" /> FR / EN / ES / DE
-          </span>
-        </div>
       </motion.div>
 
       {/* Scan → menu : la tente QR sur la table et le menu client, côte à côte */}
