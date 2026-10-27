@@ -153,7 +153,11 @@ function Hero() {
         <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
           Vos plats, vos photos, vos descriptifs, les allergènes réglementaires, traductions
           automatiques, apparence 100 % personnalisable et un QR code imprimable
-          pour vos tables. Pensé pour les restaurants, brasseries et bistros qui veulent allier efficacité et simplicité.
+          pour vos tables. Pensé pour les restaurants, brasseries et bistros qui choisissent{" "}
+  <span className="bg-gradient-to-r from-[oklch(0.66_0.13_210)] to-[oklch(0.72_0.14_190)] bg-clip-text font-bold text-transparent">
+  l&apos;efficacité et la simplicité
+  </span>
+  .
         </p>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <Button
