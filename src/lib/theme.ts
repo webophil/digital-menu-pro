@@ -611,8 +611,8 @@ export function luminance(hex: string): number {
 }
 
 /** Texte lisible sur ce fond (blanc sous 0,42 de luminance, sinon encre). */
-export function contrastOn(hex: string): string {
-  return luminance(hex) <= 0.42 ? "#ffffff" : "#17130F";
+export function contrastOn(hex: string, pure = false): string {
+  return luminance(hex) <= 0.42 ? "#ffffff" : pure ? "#000000" : "#17130F";
 }
 
 export function rgba(hex: string, alpha: number): string {

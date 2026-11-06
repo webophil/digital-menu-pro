@@ -5,6 +5,7 @@ import {
   PHOTO_SHAPE_CLASS,
   TEXTURE_STYLES,
   appearanceCssVars,
+  contrastOn,
   resolveAppearance,
   type AppearanceSettings,
   type Divider,
@@ -670,7 +671,11 @@ export function MenuPreview({
                 <MenuDivider kind={theme.divider} />
               </div>
             )}
-            <p className="m-muted">
+            <p
+              className="font-medium"
+              // Invariable (lisibilité) : blanc sur fond foncé, noir sur fond clair.
+              style={{ color: contrastOn(theme.background, true) }}
+            >
               Allergènes : information fournie à titre indicatif, signalez toute
               allergie au personnel.
             </p>
