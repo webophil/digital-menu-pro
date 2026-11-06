@@ -489,9 +489,10 @@ export function MenuPreview({
                   "rounded-full px-3 py-1.5 text-xs font-bold transition-all",
                   // Invariable (lisibilité) : couleurs fixes hors thème —
                   // inactif = noir sur blanc, actif = blanc sur noir.
+                  // Aplats sans relief ; filet fin pour que le blanc reste visible sur fond clair.
                   lang === l.code
-                    ? "clay-btn bg-black text-white"
-                    : "clay-in bg-white text-black",
+                    ? "border border-black bg-black text-white"
+                    : "border border-black/15 bg-white text-black",
                 )}
               >
                 {l.flag} {l.code.toUpperCase()}
