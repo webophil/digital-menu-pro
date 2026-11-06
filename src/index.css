@@ -211,7 +211,7 @@
     color: var(--clay-teal-deep);
   }
 
-  /* ——— Thème du menu client (page « Apparence ») ——— */
+  /* ��—— Thème du menu client (page « Apparence ») ——— */
   /* Titres du menu : famille, graisse et casse pilotés par l'apparence */
   .font-head {
     font-family: var(--m-font-head, "Baloo 2");
@@ -223,6 +223,10 @@
     font-family: var(--m-font-brand, "Baloo 2");
     font-weight: var(--m-brand-weight, 800);
     text-transform: var(--m-brand-transform, none);
+  }
+  /* Texte des plats : police choisie dans Apparence > Plats */
+  .font-body {
+    font-family: var(--m-font-body, "Quicksand");
   }
   /* Texte secondaire du menu (descriptions, mentions) */
   .m-muted {

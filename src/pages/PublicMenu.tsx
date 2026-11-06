@@ -590,7 +590,7 @@ export function MenuPreview({
                           data-zone={
                             catIndex === 0 && dishIndex === 0 ? "dishes" : undefined
                           }
-                          className="flex gap-3"
+                          className="font-body flex gap-3"
                         >
                           {dPhotos.length > 0 && (
                             <DishPhotos
