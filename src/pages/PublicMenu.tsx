@@ -450,8 +450,11 @@ export function MenuPreview({
         {menus && menus.length > 1 && (
           <div className="-mt-6 px-4">
             <div
-              className="clay flex gap-1.5 overflow-x-auto rounded-3xl p-2"
-              style={{ background: "var(--m-surface)" }}
+              className="flex gap-1.5 overflow-x-auto rounded-3xl p-2"
+              style={{
+                background: "var(--m-surface)",
+                border: "1px solid var(--m-border)",
+              }}
             >
               {menus.map((m) => (
                 <button
@@ -462,7 +465,7 @@ export function MenuPreview({
                   }}
                   className={cn(
                     "flex shrink-0 items-center gap-1.5 rounded-2xl px-3.5 py-2 text-sm font-bold transition-all",
-                    menu?._id === m._id ? "clay-btn m-accent" : "m-muted",
+                    menu?._id === m._id ? "m-accent" : "m-muted",
                   )}
                 >
                   <span>{TYPE_EMOJI[m.menuType] ?? "🍴"}</span>
